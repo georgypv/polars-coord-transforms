@@ -1,0 +1,23 @@
+[build-system]
+requires = ["maturin>=1.0,<2.0"]
+build-backend = "maturin"
+
+[project]
+name = "polars-coord-transform"
+requires-python = ">=3.8"
+dependencies = [
+    "polars >= 0.20.1"
+]
+classifiers = [
+  "Programming Language :: Rust",
+  "Programming Language :: Python :: Implementation :: CPython",
+  "Programming Language :: Python :: Implementation :: PyPy",
+]
+version = "0.1.0"
+authors = [
+    {name="Georgy Popov"}
+]
+description = "Tools for coordinate transforms and S2-indexing via Polars Expression Plugins"
+
+[project.urls]
+"Homepage" = "https://github.com/georgypv/polars-coord-transforms/"
