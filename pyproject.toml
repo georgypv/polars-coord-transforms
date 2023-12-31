@@ -6,7 +6,7 @@ build-backend = "maturin"
 name = "polars-coord-transforms"
 requires-python = ">=3.8"
 dependencies = [
-    "polars >= 0.20.1"
+    "polars >= 0.20.0"
 ]
 classifiers = [
   "Programming Language :: Rust",

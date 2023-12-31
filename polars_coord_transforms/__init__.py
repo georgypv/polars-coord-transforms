@@ -1,6 +1,10 @@
 import polars as pl
-from polars.type_aliases import IntoExpr
 from polars.utils.udfs import _get_shared_lib_location
+from polars.type_aliases import PolarsDataType
+
+
+from typing import Protocol, Iterable, cast
+
 
 lib = _get_shared_lib_location(__file__)
 
@@ -50,3 +54,39 @@ class TransformNameSpace:
             is_elementwise=True,
         )
     
+
+class CoordTransformExpr(pl.Expr):
+    @property
+    def s2(self) -> S2NameSpace:
+        return S2NameSpace(self)
+
+    @property
+    def transform(self) -> TransformNameSpace:
+        return TransformNameSpace(self)
+    
+
+class CTColumn(Protocol):
+    def __cal__(
+            self,
+            name:  str | PolarsDataType | Iterable[str] | Iterable[PolarsDataType],
+            *more_names: str | PolarsDataType,
+    ) -> CoordTransformExpr:
+        ...
+    
+    def __getattr__(self, name: str) -> pl.Expr:
+        ...
+    
+    @property
+    def s2(self) -> S2NameSpace:
+        ...
+    
+    @property
+    def transform(self) -> TransformNameSpace:
+        ...
+
+
+col = cast(CTColumn, pl.col)
+
+__all__ = [
+    "col"
+]
