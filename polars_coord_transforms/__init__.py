@@ -2,7 +2,6 @@ import polars as pl
 from polars.utils.udfs import _get_shared_lib_location
 from polars.type_aliases import PolarsDataType
 
-
 from typing import Protocol, Iterable, cast
 
 
@@ -27,12 +26,27 @@ class S2NameSpace:
         )
     
     def cellid_to_lonlat(self) -> pl.Expr:
-        
         return self._expr.register_plugin(
             lib=lib,
             symbol="cellid_to_lonlat",
             is_elementwise=True
         )
+
+    def cell_contains_point(self, point: pl.Expr) -> pl.Expr:
+        return self._expr.register_plugin(
+            lib=lib,
+            symbol="cell_contains_point",
+            is_elementwise=True,
+            args=[point]
+        ) 
+    
+    def cellid_to_vertices(self) -> pl.Expr:
+        return self._expr.register_plugin(
+            lib=lib,
+            symbol="cellid_to_vertices",
+            is_elementwise=True,
+        )
+    
 
 @pl.api.register_expr_namespace("transform")
 class TransformNameSpace:

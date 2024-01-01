@@ -1,7 +1,7 @@
 extern crate s2;
 use s2::cellid::CellID;
+use s2::cell::Cell;
 use s2::latlng::LatLng;
-
 
 pub fn lonlat_to_cellid_elementwise(lng: f64, lat: f64, level: u64) -> u64 {
     let cell_id = CellID::from(LatLng::from_degrees(lat, lng));
@@ -16,6 +16,22 @@ pub fn cellid_to_lonlat_elementwise(cellid: u64) -> (f64, f64) {
     (lng, lat)
 }
 
+#[allow(dead_code)]
+fn cell_area_elementwise(cellid: u64) -> f64 {
+    let cell =  Cell::from(CellID(cellid));
+    cell.approx_area()
+}
+
+pub fn cell_contains_point_elementwise(cellid: u64, point_lon: f64, point_lat: f64) -> bool {
+    let cell = Cell::from(CellID(cellid));
+    let point = s2::point::Point::from(LatLng::from_degrees(point_lat, point_lon));
+    cell.contains_point(&point)
+}
+
+pub fn cellid_to_vertices_elementwise(cellid: u64) -> Vec<(f64, f64)> {
+    let cell = Cell::from(CellID(cellid));
+    cell.vertices().into_iter().map(|point: s2::point::Point| (point.longitude().deg(), point.latitude().deg())).collect::<Vec<(f64, f64)>>()
+}
 
 
 #[cfg(test)]

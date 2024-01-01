@@ -1,12 +1,13 @@
+use itertools::Itertools;
 use polars::prelude::*;
 use polars::datatypes::DataType;
-use pyo3_polars::derive::{polars_expr};
+use pyo3_polars::derive::polars_expr;
 
 use itertools::izip;
 use serde::Deserialize;
 
-use crate::s2_functions::{cellid_to_lonlat_elementwise, lonlat_to_cellid_elementwise};
-use crate::coord_transforms::{enu_to_ecef_elementwise, ecef_to_lla_elementwise};
+use crate::s2_functions::*;
+use crate::coord_transforms::*;
 
 
 
@@ -90,6 +91,87 @@ fn cellid_to_lonlat(inputs: &[Series]) -> PolarsResult<Series> {
     Ok(out_chunked.into_series())
 
 }   
+
+#[polars_expr(output_type=Boolean)]
+fn cell_contains_point(inputs: &[Series]) -> PolarsResult<Series> {
+    let cell_ca: &ChunkedArray<UInt64Type> = inputs[0].u64()?;
+
+    let lonlat_ca = inputs[1].struct_()?;
+
+    let lon_ser = lonlat_ca.field_by_name("lon")?;
+    let lat_ser = lonlat_ca.field_by_name("lat")?;
+    
+    let lon_ca = lon_ser.f64()?;
+    let lat_ca = lat_ser.f64()?;
+
+    let out_ca: ChunkedArray<BooleanType> = izip!(cell_ca.into_iter(), lon_ca.into_iter(), lat_ca.into_iter()).map(
+        | (cellid_op, lon_op, lat_op) | match (cellid_op, lon_op, lat_op) {
+         (Some(cellid), Some(lon), Some(lat)) => cell_contains_point_elementwise(cellid, lon, lat),
+         _ => false
+        }   
+    ).collect_ca(cell_ca.name());
+
+    Ok(out_ca.into_series())
+}
+
+fn cellid_to_vertices_output(_: &[Field]) -> PolarsResult<Field> {
+    let mut v: Vec<Field> = vec![];
+
+    for i in 0..4 {
+        v.push(
+            Field::new(&format!("v{i}_lon"), DataType::Float64),
+        );
+        v.push(
+            Field::new(&format!("v{i}_lat"), DataType::Float64),
+        );
+
+    }
+    Ok(Field::new("vertices", DataType::Struct(v)))
+}
+
+#[polars_expr(output_type_func=cellid_to_vertices_output)]
+fn cellid_to_vertices(inputs: &[Series]) -> PolarsResult<Series> {
+    let cell_ca: &ChunkedArray<UInt64Type> = inputs[0].u64()?;
+
+    let mut v_lon: Vec<PrimitiveChunkedBuilder<Float64Type>> = Vec::with_capacity(4);
+    let mut v_lat: Vec<PrimitiveChunkedBuilder<Float64Type>> = Vec::with_capacity(4);
+
+    for i in 0..4 {
+        v_lon.push(
+            PrimitiveChunkedBuilder::new(&format!("v{i}_lon"), cell_ca.len())
+        );
+        v_lat.push(
+            PrimitiveChunkedBuilder::new(&format!("v{i}_lat"), cell_ca.len())
+        );
+    }    
+
+    for cell_op in cell_ca.into_iter() {
+        match cell_op {
+            Some(cellid) => {
+                let vertices: Vec<(f64, f64)> = cellid_to_vertices_elementwise(cellid);
+                for i in 0..4 {
+                    let (lon, lat) = vertices[i];
+                    v_lon[i].append_value(lon);
+                    v_lat[i].append_value(lat);
+                    }
+                },
+            _ => {
+                for i in 0..4 {
+                        v_lon[i].append_null();
+                        v_lat[i].append_null();
+                    }
+                }
+        }
+    }
+
+    let v_coords_ser: Vec<Series> = v_lon.into_iter().zip(v_lat.into_iter()).flat_map(
+        |(cb_lon, cb_lat)| [cb_lon.finish().into_series(), cb_lat.finish().into_series()].into_iter()
+    ).collect_vec();
+
+    let out_chunked = StructChunked::new("vertices", &v_coords_ser[..])?;
+    Ok(out_chunked.into_series())
+}
+
 
 fn enu_to_ecef_output(_: &[Field]) -> PolarsResult<Field> {
     let v: Vec<Field> = vec![
