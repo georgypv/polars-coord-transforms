@@ -61,10 +61,26 @@ class TransformNameSpace:
             args=[rotation, offset]
         )
     
+    def ecef_to_enu(self, rotation: pl.Expr, offset: pl.Expr) -> pl.Expr:
+        return self._expr.register_plugin(
+            lib=lib,
+            symbol="ecef_to_enu",
+            is_elementwise=True,
+            args=[rotation, offset]
+        )
+    
+    
     def ecef_to_lla(self) -> pl.Expr:
         return self._expr.register_plugin(
             lib=lib,
             symbol="ecef_to_lla",
+            is_elementwise=True,
+        )
+    
+    def lla_to_ecef(self) -> pl.Expr:
+        return self._expr.register_plugin(
+            lib=lib,
+            symbol="lla_to_ecef",
             is_elementwise=True,
         )
     

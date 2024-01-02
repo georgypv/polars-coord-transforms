@@ -1,7 +1,7 @@
 extern crate nalgebra as na;
 
 use na::{Vector3, Vector4, Quaternion, UnitQuaternion, Rotation3};
-use map_3d::{ecef2geodetic, rad2deg, Ellipsoid};
+use map_3d::{ecef2geodetic, geodetic2ecef, rad2deg, deg2rad, Ellipsoid};
 
 pub fn enu_to_ecef_elementwise(enu_coords: Vec<f64>, rotation: Vec<f64>, offset: Vec<f64>) -> (f64, f64, f64) {
 
@@ -12,9 +12,23 @@ pub fn enu_to_ecef_elementwise(enu_coords: Vec<f64>, rotation: Vec<f64>, offset:
     (ecef_vector.x, ecef_vector.y, ecef_vector.z)
 }
 
+pub fn ecef_to_enu_elementwise(ecef_coords: Vec<f64>, rotation: Vec<f64>, offset: Vec<f64>) -> (f64, f64, f64) {
+    let quat: na::Unit<Quaternion<f64>> = UnitQuaternion::from_quaternion(Quaternion::from_vector(Vector4::from_vec(rotation)));
+    let r_inverse: na::Rotation<f64, 3> = Rotation3::from(quat).inverse();
+    
+    let enu_vector = r_inverse.transform_vector(&(Vector3::from_vec(ecef_coords) - Vector3::from_vec(offset)));
+    (enu_vector.x, enu_vector.y, enu_vector.z)
+
+}
+
 pub fn ecef_to_lla_elementwise(x: f64, y: f64, z: f64) -> (f64, f64, f64) {
     let lla = ecef2geodetic(x, y, z, Ellipsoid::WGS84);
     (rad2deg(lla.1), rad2deg(lla.0), lla.2)
+}
+
+pub fn lla_to_ecef_elementwise(lon: f64, lat: f64, alt: f64) -> (f64, f64, f64) {
+    let (x, y, z) = geodetic2ecef(deg2rad(lat), deg2rad(lon), alt, Ellipsoid::WGS84);
+    (x, y, z)
 }
 
 

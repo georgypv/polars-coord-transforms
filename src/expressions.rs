@@ -10,7 +10,7 @@ use crate::s2_functions::*;
 use crate::coord_transforms::*;
 
 
-
+// SSNameSpace
 #[derive(Deserialize)]
 struct S2Kwargs {
     level: u64
@@ -173,7 +173,8 @@ fn cellid_to_vertices(inputs: &[Series]) -> PolarsResult<Series> {
 }
 
 
-fn enu_to_ecef_output(_: &[Field]) -> PolarsResult<Field> {
+//TransfromNameSpace
+fn ecef_output(_: &[Field]) -> PolarsResult<Field> {
     let v: Vec<Field> = vec![
         Field::new("x", DataType::Float64),
         Field::new("y", DataType::Float64),
@@ -182,7 +183,7 @@ fn enu_to_ecef_output(_: &[Field]) -> PolarsResult<Field> {
     Ok(Field::new("ecef", DataType::Struct(v)))
 }
 
-#[polars_expr(output_type_func=enu_to_ecef_output)]
+#[polars_expr(output_type_func=ecef_output)]
 fn enu_to_ecef(inputs: &[Series]) -> PolarsResult<Series> {
 
     let enu_ca = inputs[0].struct_()?;
@@ -240,8 +241,76 @@ fn enu_to_ecef(inputs: &[Series]) -> PolarsResult<Series> {
 
 }
 
+fn enu_output(_: &[Field]) -> PolarsResult<Field> {
+    let v: Vec<Field> = vec![
+        Field::new("x", DataType::Float64),
+        Field::new("y", DataType::Float64),
+        Field::new("z", DataType::Float64),
+    ];
+    Ok(Field::new("enu", DataType::Struct(v)))
+}
 
-fn ecef_to_lla_output(_: &[Field]) -> PolarsResult<Field> {
+
+#[polars_expr(output_type_func=enu_output)]
+fn ecef_to_enu(inputs: &[Series]) -> PolarsResult<Series> {
+
+    let ca = inputs[0].struct_()?;
+    let rotation_ca = inputs[1].struct_()?;
+    let offset_ca = inputs[2].struct_()?;
+
+    let ecef_x_ser = ca.field_by_name("x")?;
+    let ecef_y_ser = ca.field_by_name("y")?;
+    let ecef_z_ser = ca.field_by_name("z")?;
+    let rotation_x_ser = rotation_ca.field_by_name("x")?;
+    let rotation_y_ser = rotation_ca.field_by_name("y")?;
+    let rotation_z_ser = rotation_ca.field_by_name("z")?;
+    let rotation_w_ser = rotation_ca.field_by_name("w")?;
+    let offset_x_ser = offset_ca.field_by_name("x")?;
+    let offset_y_ser = offset_ca.field_by_name("y")?;
+    let offset_z_ser = offset_ca.field_by_name("z")?;
+
+    let ecef_x: &ChunkedArray<Float64Type>= ecef_x_ser.f64()?;
+    let ecef_y: &ChunkedArray<Float64Type>= ecef_y_ser.f64()?;
+    let ecef_z: &ChunkedArray<Float64Type>= ecef_z_ser.f64()?;
+    let rotation_x: &ChunkedArray<Float64Type>= rotation_x_ser.f64()?;
+    let rotation_y: &ChunkedArray<Float64Type>= rotation_y_ser.f64()?;
+    let rotation_z: &ChunkedArray<Float64Type>= rotation_z_ser.f64()?;
+    let rotation_w: &ChunkedArray<Float64Type>= rotation_w_ser.f64()?;
+    let offset_x: &ChunkedArray<Float64Type>= offset_x_ser.f64()?;
+    let offset_y: &ChunkedArray<Float64Type>= offset_y_ser.f64()?;
+    let offset_z: &ChunkedArray<Float64Type>= offset_z_ser.f64()?;
+
+    let mut enu_x: PrimitiveChunkedBuilder<Float64Type> =
+        PrimitiveChunkedBuilder::new("x", ca.len());
+    let mut enu_y: PrimitiveChunkedBuilder<Float64Type> =
+        PrimitiveChunkedBuilder::new("y", ca.len());
+    let mut enu_z: PrimitiveChunkedBuilder<Float64Type> =
+        PrimitiveChunkedBuilder::new("z", ca.len());
+
+    for (ecef_x_val, ecef_y_val, ecef_z_val, rotation_x_val, rotation_y_val, rotation_z_val, rotation_w_val, offset_x_val, offset_y_val, offset_z_val) 
+        in izip!(ecef_x, ecef_y, ecef_z, rotation_x, rotation_y, rotation_z, rotation_w, offset_x, offset_y, offset_z) {
+            let ecef_vec = vec![ecef_x_val.unwrap(), ecef_y_val.unwrap(), ecef_z_val.unwrap()];
+            let rotation_vec = vec![rotation_x_val.unwrap(), rotation_y_val.unwrap(), rotation_z_val.unwrap(),rotation_w_val.unwrap()];
+            let offset_vec = vec![offset_x_val.unwrap(), offset_y_val.unwrap(), offset_z_val.unwrap()];
+
+            let (x, y, z) = ecef_to_enu_elementwise(ecef_vec, rotation_vec, offset_vec);
+
+            enu_x.append_value(x);
+            enu_y.append_value(y);
+            enu_z.append_value(z);
+        } 
+
+    let ser_enu_x = enu_x.finish().into_series();
+    let ser_enu_y = enu_y.finish().into_series();
+    let ser_enu_z = enu_z.finish().into_series();
+
+    let out_chunked = StructChunked::new("enu", &[ser_enu_x, ser_enu_y, ser_enu_z])?;
+    Ok(out_chunked.into_series())
+
+}
+
+
+fn lla_output(_: &[Field]) -> PolarsResult<Field> {
     let v: Vec<Field> = vec![
         Field::new("lon", DataType::Float64),
         Field::new("lat", DataType::Float64),
@@ -250,7 +319,7 @@ fn ecef_to_lla_output(_: &[Field]) -> PolarsResult<Field> {
     Ok(Field::new("coordinates", DataType::Struct(v)))
 }
 
-#[polars_expr(output_type_func=ecef_to_lla_output)]
+#[polars_expr(output_type_func=lla_output)]
 fn ecef_to_lla(inputs: &[Series]) -> PolarsResult<Series> {
 
     let ca = inputs[0].struct_()?;
@@ -296,3 +365,52 @@ fn ecef_to_lla(inputs: &[Series]) -> PolarsResult<Series> {
     
 
 }
+
+
+#[polars_expr(output_type_func=ecef_output)]
+fn lla_to_ecef(inputs: &[Series]) -> PolarsResult<Series> {
+
+    let ca = inputs[0].struct_()?;
+
+    let lon_ser = ca.field_by_name("lon")?;
+    let lat_ser = ca.field_by_name("lat")?;
+    let alt_ser = ca.field_by_name("alt")?;
+
+    let lon = lon_ser.f64()?;
+    let lat = lat_ser.f64()?;
+    let alt = alt_ser.f64()?;
+
+
+    let mut ecef_x: PrimitiveChunkedBuilder<Float64Type> =
+        PrimitiveChunkedBuilder::new("x", ca.len());
+    let mut ecef_y: PrimitiveChunkedBuilder<Float64Type> =
+        PrimitiveChunkedBuilder::new("y", ca.len());
+    let mut ecef_z: PrimitiveChunkedBuilder<Float64Type> =
+        PrimitiveChunkedBuilder::new("z", ca.len());
+
+    for (lon_op, lat_op, alt_op) in izip!(lon.into_iter(), lat.into_iter(), alt.into_iter()) {
+        match (lon_op, lat_op, alt_op) {
+            (Some(lo), Some(la), Some(al)) => {
+                let (x, y, z) = lla_to_ecef_elementwise(lo, la, al);
+                ecef_x.append_value(x);
+                ecef_y.append_value(y);
+                ecef_z.append_value(z);
+            },
+            _ => {
+                ecef_x.append_null();
+                ecef_y.append_null();
+                ecef_z.append_null();
+            }
+        }
+    }
+
+    let ser_x = ecef_x.finish().into_series();
+    let ser_y = ecef_y.finish().into_series();
+    let ser_z = ecef_z.finish().into_series();
+
+    let out_chunked = StructChunked::new("coordinates", &[ser_x, ser_y, ser_z])?;
+    Ok(out_chunked.into_series())
+    
+
+}
+
