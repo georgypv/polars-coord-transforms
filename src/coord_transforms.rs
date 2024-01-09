@@ -3,21 +3,21 @@ extern crate nalgebra as na;
 use na::{Vector3, Vector4, Quaternion, UnitQuaternion, Rotation3};
 use map_3d::{ecef2geodetic, geodetic2ecef, rad2deg, deg2rad, Ellipsoid};
 
-pub fn enu_to_ecef_elementwise(enu_coords: Vec<f64>, rotation: Vec<f64>, offset: Vec<f64>) -> (f64, f64, f64) {
+pub fn map_to_ecef_elementwise(map_coords: Vec<f64>, rotation: Vec<f64>, offset: Vec<f64>) -> (f64, f64, f64) {
 
     let quat = UnitQuaternion::from_quaternion(Quaternion::from_vector(Vector4::from_vec(rotation)));
     let r = Rotation3::from(quat);
-    let ecef_vector = r.transform_vector(&Vector3::from_vec(enu_coords)) + Vector3::from_vec(offset);
+    let ecef_vector = r.transform_vector(&Vector3::from_vec(map_coords)) + Vector3::from_vec(offset);
 
     (ecef_vector.x, ecef_vector.y, ecef_vector.z)
 }
 
-pub fn ecef_to_enu_elementwise(ecef_coords: Vec<f64>, rotation: Vec<f64>, offset: Vec<f64>) -> (f64, f64, f64) {
+pub fn ecef_to_map_elementwise(ecef_coords: Vec<f64>, rotation: Vec<f64>, offset: Vec<f64>) -> (f64, f64, f64) {
     let quat: na::Unit<Quaternion<f64>> = UnitQuaternion::from_quaternion(Quaternion::from_vector(Vector4::from_vec(rotation)));
     let r_inverse: na::Rotation<f64, 3> = Rotation3::from(quat).inverse();
     
-    let enu_vector = r_inverse.transform_vector(&(Vector3::from_vec(ecef_coords) - Vector3::from_vec(offset)));
-    (enu_vector.x, enu_vector.y, enu_vector.z)
+    let map_vector = r_inverse.transform_vector(&(Vector3::from_vec(ecef_coords) - Vector3::from_vec(offset)));
+    (map_vector.x, map_vector.y, map_vector.z)
 
 }
 
@@ -34,17 +34,17 @@ pub fn lla_to_ecef_elementwise(lon: f64, lat: f64, alt: f64) -> (f64, f64, f64) 
 
 #[cfg(test)]
 mod transform_tests { 
-    use crate::coord_transforms::{enu_to_ecef_elementwise, ecef_to_lla_elementwise};
+    use crate::coord_transforms::{map_to_ecef_elementwise, ecef_to_lla_elementwise};
 
     #[test]
-    fn test_enu_to_ecef() {
-        let enu_coords: Vec<f64> = vec![-97066.730132, 122807.787398,	-1888.737721];
+    fn test_map_to_ecef() {
+        let map_coords: Vec<f64> = vec![-97066.730132, 122807.787398,	-1888.737721];
         let rotation: Vec<f64> = vec![0.13007119, 0.26472049, 0.85758219, 0.42137553];
         let offset: Vec<f64> = vec![2852423.40536658, 2201848.41975346, 5245234.74365368];
 
         let expected_result: (f64, f64, f64) = (2830593.6327610738, 2062375.5703225536, 5312896.0721501345);
 
-        assert_eq!(enu_to_ecef_elementwise(enu_coords, rotation, offset), expected_result)
+        assert_eq!(map_to_ecef_elementwise(map_coords, rotation, offset), expected_result)
 
     }
 

@@ -47,14 +47,14 @@ class TransformNameSpace:
     def __init__(self, expr: pl.Expr):
         self._expr = expr
 
-    def enu_to_ecef(self, rotation: pl.Expr, offset: pl.Expr) -> pl.Expr:
+    def map_to_ecef(self, rotation: pl.Expr, offset: pl.Expr) -> pl.Expr:
         return self._expr.register_plugin(
-            lib=lib, symbol="enu_to_ecef", is_elementwise=True, args=[rotation, offset]
+            lib=lib, symbol="map_to_ecef", is_elementwise=True, args=[rotation, offset]
         )
 
-    def ecef_to_enu(self, rotation: pl.Expr, offset: pl.Expr) -> pl.Expr:
+    def ecef_to_map(self, rotation: pl.Expr, offset: pl.Expr) -> pl.Expr:
         return self._expr.register_plugin(
-            lib=lib, symbol="ecef_to_enu", is_elementwise=True, args=[rotation, offset]
+            lib=lib, symbol="ecef_to_map", is_elementwise=True, args=[rotation, offset]
         )
 
     def ecef_to_lla(self) -> pl.Expr:

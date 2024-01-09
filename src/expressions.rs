@@ -184,15 +184,15 @@ fn ecef_output(_: &[Field]) -> PolarsResult<Field> {
 }
 
 #[polars_expr(output_type_func=ecef_output)]
-fn enu_to_ecef(inputs: &[Series]) -> PolarsResult<Series> {
+fn map_to_ecef(inputs: &[Series]) -> PolarsResult<Series> {
 
-    let enu_ca = inputs[0].struct_()?;
+    let map_ca = inputs[0].struct_()?;
     let rotation_ca = inputs[1].struct_()?;
     let offset_ca = inputs[2].struct_()?;
 
-    let enu_x_ser = enu_ca.field_by_name("x")?;
-    let enu_y_ser = enu_ca.field_by_name("y")?;
-    let enu_z_ser = enu_ca.field_by_name("z")?;
+    let map_x_ser = map_ca.field_by_name("x")?;
+    let map_y_ser = map_ca.field_by_name("y")?;
+    let map_z_ser = map_ca.field_by_name("z")?;
     let rotation_x_ser = rotation_ca.field_by_name("x")?;
     let rotation_y_ser = rotation_ca.field_by_name("y")?;
     let rotation_z_ser = rotation_ca.field_by_name("z")?;
@@ -201,9 +201,9 @@ fn enu_to_ecef(inputs: &[Series]) -> PolarsResult<Series> {
     let offset_y_ser = offset_ca.field_by_name("y")?;
     let offset_z_ser = offset_ca.field_by_name("z")?;
 
-    let enu_x: &ChunkedArray<Float64Type>= enu_x_ser.f64()?;
-    let enu_y: &ChunkedArray<Float64Type>= enu_y_ser.f64()?;
-    let enu_z: &ChunkedArray<Float64Type>= enu_z_ser.f64()?;
+    let map_x: &ChunkedArray<Float64Type>= map_x_ser.f64()?;
+    let map_y: &ChunkedArray<Float64Type>= map_y_ser.f64()?;
+    let map_z: &ChunkedArray<Float64Type>= map_z_ser.f64()?;
     let rotation_x: &ChunkedArray<Float64Type>= rotation_x_ser.f64()?;
     let rotation_y: &ChunkedArray<Float64Type>= rotation_y_ser.f64()?;
     let rotation_z: &ChunkedArray<Float64Type>= rotation_z_ser.f64()?;
@@ -213,19 +213,19 @@ fn enu_to_ecef(inputs: &[Series]) -> PolarsResult<Series> {
     let offset_z: &ChunkedArray<Float64Type>= offset_z_ser.f64()?;
 
     let mut ecef_x: PrimitiveChunkedBuilder<Float64Type> =
-        PrimitiveChunkedBuilder::new("x", enu_ca.len());
+        PrimitiveChunkedBuilder::new("x", map_ca.len());
     let mut ecef_y: PrimitiveChunkedBuilder<Float64Type> =
-        PrimitiveChunkedBuilder::new("y", enu_ca.len());
+        PrimitiveChunkedBuilder::new("y", map_ca.len());
     let mut ecef_z: PrimitiveChunkedBuilder<Float64Type> =
-        PrimitiveChunkedBuilder::new("z", enu_ca.len());
+        PrimitiveChunkedBuilder::new("z", map_ca.len());
 
-    for (enu_x_val, enu_y_val, enu_z_val, rotation_x_val, rotation_y_val, rotation_z_val, rotation_w_val, offset_x_val, offset_y_val, offset_z_val) 
-        in izip!(enu_x, enu_y, enu_z, rotation_x, rotation_y, rotation_z, rotation_w, offset_x, offset_y, offset_z) {
-            let enu_vec = vec![enu_x_val.unwrap(), enu_y_val.unwrap(), enu_z_val.unwrap()];
+    for (map_x_val, map_y_val, map_z_val, rotation_x_val, rotation_y_val, rotation_z_val, rotation_w_val, offset_x_val, offset_y_val, offset_z_val) 
+        in izip!(map_x, map_y, map_z, rotation_x, rotation_y, rotation_z, rotation_w, offset_x, offset_y, offset_z) {
+            let map_vec = vec![map_x_val.unwrap(), map_y_val.unwrap(), map_z_val.unwrap()];
             let rotation_vec = vec![rotation_x_val.unwrap(), rotation_y_val.unwrap(), rotation_z_val.unwrap(),rotation_w_val.unwrap()];
             let offset_vec = vec![offset_x_val.unwrap(), offset_y_val.unwrap(), offset_z_val.unwrap()];
 
-            let (x, y, z) = enu_to_ecef_elementwise(enu_vec, rotation_vec, offset_vec);
+            let (x, y, z) = map_to_ecef_elementwise(map_vec, rotation_vec, offset_vec);
 
             ecef_x.append_value(x);
             ecef_y.append_value(y);
@@ -241,18 +241,18 @@ fn enu_to_ecef(inputs: &[Series]) -> PolarsResult<Series> {
 
 }
 
-fn enu_output(_: &[Field]) -> PolarsResult<Field> {
+fn map_output(_: &[Field]) -> PolarsResult<Field> {
     let v: Vec<Field> = vec![
         Field::new("x", DataType::Float64),
         Field::new("y", DataType::Float64),
         Field::new("z", DataType::Float64),
     ];
-    Ok(Field::new("enu", DataType::Struct(v)))
+    Ok(Field::new("map", DataType::Struct(v)))
 }
 
 
-#[polars_expr(output_type_func=enu_output)]
-fn ecef_to_enu(inputs: &[Series]) -> PolarsResult<Series> {
+#[polars_expr(output_type_func=map_output)]
+fn ecef_to_map(inputs: &[Series]) -> PolarsResult<Series> {
 
     let ca = inputs[0].struct_()?;
     let rotation_ca = inputs[1].struct_()?;
@@ -280,11 +280,11 @@ fn ecef_to_enu(inputs: &[Series]) -> PolarsResult<Series> {
     let offset_y: &ChunkedArray<Float64Type>= offset_y_ser.f64()?;
     let offset_z: &ChunkedArray<Float64Type>= offset_z_ser.f64()?;
 
-    let mut enu_x: PrimitiveChunkedBuilder<Float64Type> =
+    let mut map_x: PrimitiveChunkedBuilder<Float64Type> =
         PrimitiveChunkedBuilder::new("x", ca.len());
-    let mut enu_y: PrimitiveChunkedBuilder<Float64Type> =
+    let mut map_y: PrimitiveChunkedBuilder<Float64Type> =
         PrimitiveChunkedBuilder::new("y", ca.len());
-    let mut enu_z: PrimitiveChunkedBuilder<Float64Type> =
+    let mut map_z: PrimitiveChunkedBuilder<Float64Type> =
         PrimitiveChunkedBuilder::new("z", ca.len());
 
     for (ecef_x_val, ecef_y_val, ecef_z_val, rotation_x_val, rotation_y_val, rotation_z_val, rotation_w_val, offset_x_val, offset_y_val, offset_z_val) 
@@ -293,18 +293,18 @@ fn ecef_to_enu(inputs: &[Series]) -> PolarsResult<Series> {
             let rotation_vec = vec![rotation_x_val.unwrap(), rotation_y_val.unwrap(), rotation_z_val.unwrap(),rotation_w_val.unwrap()];
             let offset_vec = vec![offset_x_val.unwrap(), offset_y_val.unwrap(), offset_z_val.unwrap()];
 
-            let (x, y, z) = ecef_to_enu_elementwise(ecef_vec, rotation_vec, offset_vec);
+            let (x, y, z) = ecef_to_map_elementwise(ecef_vec, rotation_vec, offset_vec);
 
-            enu_x.append_value(x);
-            enu_y.append_value(y);
-            enu_z.append_value(z);
+            map_x.append_value(x);
+            map_y.append_value(y);
+            map_z.append_value(z);
         } 
 
-    let ser_enu_x = enu_x.finish().into_series();
-    let ser_enu_y = enu_y.finish().into_series();
-    let ser_enu_z = enu_z.finish().into_series();
+    let ser_map_x = map_x.finish().into_series();
+    let ser_map_y = map_y.finish().into_series();
+    let ser_map_z = map_z.finish().into_series();
 
-    let out_chunked = StructChunked::new("enu", &[ser_enu_x, ser_enu_y, ser_enu_z])?;
+    let out_chunked = StructChunked::new("map", &[ser_map_x, ser_map_y, ser_map_z])?;
     Ok(out_chunked.into_series())
 
 }
