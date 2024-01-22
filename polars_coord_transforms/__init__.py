@@ -71,6 +71,14 @@ class TransformNameSpace:
             is_elementwise=True,
         )
 
+    def rotate_map_coords(self, rotation: pl.Expr, scale: pl.Expr) -> pl.Expr:
+        return self._expr.register_plugin(
+            lib=lib,
+            symbol="rotate_map_coords",
+            is_elementwise=True,
+            args=[rotation, scale],
+        )
+
 
 class CoordTransformExpr(pl.Expr):
     @property

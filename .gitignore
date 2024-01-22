@@ -5,3 +5,4 @@ Cargo.lock
 __pycache__
 .vscode
 .ruff_cache
+.idea/

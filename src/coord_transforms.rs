@@ -3,18 +3,21 @@ extern crate nalgebra as na;
 use na::{Vector3, Vector4, Quaternion, UnitQuaternion, Rotation3};
 use map_3d::{ecef2geodetic, geodetic2ecef, rad2deg, deg2rad, Ellipsoid};
 
+fn rotation_from_quat(rotation: Vec<f64>) -> na::Rotation<f64, 3> {
+    let quat = UnitQuaternion::from_quaternion(Quaternion::from_vector(Vector4::from_vec(rotation)));
+    Rotation3::from(quat)
+} 
+
 pub fn map_to_ecef_elementwise(map_coords: Vec<f64>, rotation: Vec<f64>, offset: Vec<f64>) -> (f64, f64, f64) {
 
-    let quat = UnitQuaternion::from_quaternion(Quaternion::from_vector(Vector4::from_vec(rotation)));
-    let r = Rotation3::from(quat);
+    let r: na::Rotation<f64, 3> = rotation_from_quat(rotation);
     let ecef_vector = r.transform_vector(&Vector3::from_vec(map_coords)) + Vector3::from_vec(offset);
 
     (ecef_vector.x, ecef_vector.y, ecef_vector.z)
 }
 
 pub fn ecef_to_map_elementwise(ecef_coords: Vec<f64>, rotation: Vec<f64>, offset: Vec<f64>) -> (f64, f64, f64) {
-    let quat: na::Unit<Quaternion<f64>> = UnitQuaternion::from_quaternion(Quaternion::from_vector(Vector4::from_vec(rotation)));
-    let r_inverse: na::Rotation<f64, 3> = Rotation3::from(quat).inverse();
+    let r_inverse: na::Rotation<f64, 3> = rotation_from_quat(rotation).inverse();
     
     let map_vector = r_inverse.transform_vector(&(Vector3::from_vec(ecef_coords) - Vector3::from_vec(offset)));
     (map_vector.x, map_vector.y, map_vector.z)
@@ -29,6 +32,15 @@ pub fn ecef_to_lla_elementwise(x: f64, y: f64, z: f64) -> (f64, f64, f64) {
 pub fn lla_to_ecef_elementwise(lon: f64, lat: f64, alt: f64) -> (f64, f64, f64) {
     let (x, y, z) = geodetic2ecef(deg2rad(lat), deg2rad(lon), alt, Ellipsoid::WGS84);
     (x, y, z)
+}
+
+
+pub fn rotate_map_coords_elementwise(map_coords: Vec<f64>, rotation: Vec<f64>, scale: Vec<f64>) -> (f64, f64, f64) {
+    let r: na::Rotation<f64, 3> = rotation_from_quat(rotation);
+    let scale_rotated = r.transform_vector(&Vector3::from_vec(scale));
+    let map_coords_rotated = Vector3::from_vec(map_coords) + scale_rotated;
+    (map_coords_rotated.x, map_coords_rotated.y, map_coords_rotated.z)
+
 }
 
 
@@ -58,3 +70,5 @@ mod transform_tests {
     }
 
 }
+
+

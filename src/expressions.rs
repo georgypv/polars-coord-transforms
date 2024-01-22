@@ -10,6 +10,65 @@ use crate::s2_functions::*;
 use crate::coord_transforms::*;
 
 
+fn apply_rotation_to_map(
+    coords_ca: &StructChunked,
+    rotation_ca: &StructChunked,
+    offset_ca: &StructChunked,
+    result_struct_name: &str,
+    func_elementwise: impl Fn(Vec<f64>, Vec<f64>, Vec<f64>) -> (f64, f64, f64)
+    ) -> Result<StructChunked, PolarsError> {
+    
+        let x_ser = coords_ca.field_by_name("x").unwrap();
+        let y_ser = coords_ca.field_by_name("y").unwrap();
+        let z_ser = coords_ca.field_by_name("z").unwrap();
+        let rotation_x_ser = rotation_ca.field_by_name("x").unwrap();
+        let rotation_y_ser = rotation_ca.field_by_name("y").unwrap();
+        let rotation_z_ser = rotation_ca.field_by_name("z").unwrap();
+        let rotation_w_ser = rotation_ca.field_by_name("w").unwrap();
+        let offset_x_ser = offset_ca.field_by_name("x").unwrap();
+        let offset_y_ser = offset_ca.field_by_name("y").unwrap();
+        let offset_z_ser = offset_ca.field_by_name("z").unwrap();
+    
+        let x_ca: &ChunkedArray<Float64Type>= x_ser.f64().unwrap();
+        let y_ca: &ChunkedArray<Float64Type>= y_ser.f64().unwrap();
+        let z_ca: &ChunkedArray<Float64Type>= z_ser.f64().unwrap();
+        let rotation_x: &ChunkedArray<Float64Type>= rotation_x_ser.f64().unwrap();
+        let rotation_y: &ChunkedArray<Float64Type>= rotation_y_ser.f64().unwrap();
+        let rotation_z: &ChunkedArray<Float64Type>= rotation_z_ser.f64().unwrap();
+        let rotation_w: &ChunkedArray<Float64Type>= rotation_w_ser.f64().unwrap();
+        let offset_x: &ChunkedArray<Float64Type>= offset_x_ser.f64().unwrap();
+        let offset_y: &ChunkedArray<Float64Type>= offset_y_ser.f64().unwrap();
+        let offset_z: &ChunkedArray<Float64Type>= offset_z_ser.f64().unwrap();
+    
+        let mut x_cb: PrimitiveChunkedBuilder<Float64Type> =
+            PrimitiveChunkedBuilder::new("x", coords_ca.len());
+        let mut y_cb: PrimitiveChunkedBuilder<Float64Type> =
+            PrimitiveChunkedBuilder::new("y", coords_ca.len());
+        let mut z_cb: PrimitiveChunkedBuilder<Float64Type> =
+            PrimitiveChunkedBuilder::new("z", coords_ca.len());
+        for (x_val, y_val, z_val, rotation_x_val, rotation_y_val, rotation_z_val, rotation_w_val, offset_x_val, offset_y_val, offset_z_val) 
+            in izip!(x_ca, y_ca, z_ca, rotation_x, rotation_y, rotation_z, rotation_w, offset_x, offset_y, offset_z) {
+                let map_vec = vec![x_val.unwrap(), y_val.unwrap(), z_val.unwrap()];
+                let rotation_vec = vec![rotation_x_val.unwrap(), rotation_y_val.unwrap(), rotation_z_val.unwrap(),rotation_w_val.unwrap()];
+                let offset_vec = vec![offset_x_val.unwrap(), offset_y_val.unwrap(), offset_z_val.unwrap()];
+    
+                let (x, y, z) = func_elementwise(map_vec, rotation_vec, offset_vec);
+    
+                x_cb.append_value(x);
+                y_cb.append_value(y);
+                z_cb.append_value(z);
+            } 
+    
+        let ser_out_x = x_cb.finish().into_series();
+        let ser_out_y = y_cb.finish().into_series();
+        let ser_out_z = z_cb.finish().into_series();
+    
+        let out_chunked = StructChunked::new(result_struct_name, &[ser_out_x, ser_out_y, ser_out_z]);
+        out_chunked
+    
+}
+
+
 // SSNameSpace
 #[derive(Deserialize)]
 struct S2Kwargs {
@@ -183,6 +242,7 @@ fn ecef_output(_: &[Field]) -> PolarsResult<Field> {
     Ok(Field::new("ecef", DataType::Struct(v)))
 }
 
+
 #[polars_expr(output_type_func=ecef_output)]
 fn map_to_ecef(inputs: &[Series]) -> PolarsResult<Series> {
 
@@ -190,54 +250,9 @@ fn map_to_ecef(inputs: &[Series]) -> PolarsResult<Series> {
     let rotation_ca = inputs[1].struct_()?;
     let offset_ca = inputs[2].struct_()?;
 
-    let map_x_ser = map_ca.field_by_name("x")?;
-    let map_y_ser = map_ca.field_by_name("y")?;
-    let map_z_ser = map_ca.field_by_name("z")?;
-    let rotation_x_ser = rotation_ca.field_by_name("x")?;
-    let rotation_y_ser = rotation_ca.field_by_name("y")?;
-    let rotation_z_ser = rotation_ca.field_by_name("z")?;
-    let rotation_w_ser = rotation_ca.field_by_name("w")?;
-    let offset_x_ser = offset_ca.field_by_name("x")?;
-    let offset_y_ser = offset_ca.field_by_name("y")?;
-    let offset_z_ser = offset_ca.field_by_name("z")?;
+    let out_chunked = apply_rotation_to_map(map_ca, rotation_ca, offset_ca, "ecef", map_to_ecef_elementwise);
 
-    let map_x: &ChunkedArray<Float64Type>= map_x_ser.f64()?;
-    let map_y: &ChunkedArray<Float64Type>= map_y_ser.f64()?;
-    let map_z: &ChunkedArray<Float64Type>= map_z_ser.f64()?;
-    let rotation_x: &ChunkedArray<Float64Type>= rotation_x_ser.f64()?;
-    let rotation_y: &ChunkedArray<Float64Type>= rotation_y_ser.f64()?;
-    let rotation_z: &ChunkedArray<Float64Type>= rotation_z_ser.f64()?;
-    let rotation_w: &ChunkedArray<Float64Type>= rotation_w_ser.f64()?;
-    let offset_x: &ChunkedArray<Float64Type>= offset_x_ser.f64()?;
-    let offset_y: &ChunkedArray<Float64Type>= offset_y_ser.f64()?;
-    let offset_z: &ChunkedArray<Float64Type>= offset_z_ser.f64()?;
-
-    let mut ecef_x: PrimitiveChunkedBuilder<Float64Type> =
-        PrimitiveChunkedBuilder::new("x", map_ca.len());
-    let mut ecef_y: PrimitiveChunkedBuilder<Float64Type> =
-        PrimitiveChunkedBuilder::new("y", map_ca.len());
-    let mut ecef_z: PrimitiveChunkedBuilder<Float64Type> =
-        PrimitiveChunkedBuilder::new("z", map_ca.len());
-
-    for (map_x_val, map_y_val, map_z_val, rotation_x_val, rotation_y_val, rotation_z_val, rotation_w_val, offset_x_val, offset_y_val, offset_z_val) 
-        in izip!(map_x, map_y, map_z, rotation_x, rotation_y, rotation_z, rotation_w, offset_x, offset_y, offset_z) {
-            let map_vec = vec![map_x_val.unwrap(), map_y_val.unwrap(), map_z_val.unwrap()];
-            let rotation_vec = vec![rotation_x_val.unwrap(), rotation_y_val.unwrap(), rotation_z_val.unwrap(),rotation_w_val.unwrap()];
-            let offset_vec = vec![offset_x_val.unwrap(), offset_y_val.unwrap(), offset_z_val.unwrap()];
-
-            let (x, y, z) = map_to_ecef_elementwise(map_vec, rotation_vec, offset_vec);
-
-            ecef_x.append_value(x);
-            ecef_y.append_value(y);
-            ecef_z.append_value(z);
-        } 
-
-    let ser_ecef_x = ecef_x.finish().into_series();
-    let ser_ecef_y = ecef_y.finish().into_series();
-    let ser_ecef_z = ecef_z.finish().into_series();
-
-    let out_chunked = StructChunked::new("ecef", &[ser_ecef_x, ser_ecef_y, ser_ecef_z])?;
-    Ok(out_chunked.into_series())
+    Ok(out_chunked?.into_series())
 
 }
 
@@ -254,58 +269,12 @@ fn map_output(_: &[Field]) -> PolarsResult<Field> {
 #[polars_expr(output_type_func=map_output)]
 fn ecef_to_map(inputs: &[Series]) -> PolarsResult<Series> {
 
-    let ca = inputs[0].struct_()?;
+    let ecef_ca = inputs[0].struct_()?;
     let rotation_ca = inputs[1].struct_()?;
     let offset_ca = inputs[2].struct_()?;
 
-    let ecef_x_ser = ca.field_by_name("x")?;
-    let ecef_y_ser = ca.field_by_name("y")?;
-    let ecef_z_ser = ca.field_by_name("z")?;
-    let rotation_x_ser = rotation_ca.field_by_name("x")?;
-    let rotation_y_ser = rotation_ca.field_by_name("y")?;
-    let rotation_z_ser = rotation_ca.field_by_name("z")?;
-    let rotation_w_ser = rotation_ca.field_by_name("w")?;
-    let offset_x_ser = offset_ca.field_by_name("x")?;
-    let offset_y_ser = offset_ca.field_by_name("y")?;
-    let offset_z_ser = offset_ca.field_by_name("z")?;
-
-    let ecef_x: &ChunkedArray<Float64Type>= ecef_x_ser.f64()?;
-    let ecef_y: &ChunkedArray<Float64Type>= ecef_y_ser.f64()?;
-    let ecef_z: &ChunkedArray<Float64Type>= ecef_z_ser.f64()?;
-    let rotation_x: &ChunkedArray<Float64Type>= rotation_x_ser.f64()?;
-    let rotation_y: &ChunkedArray<Float64Type>= rotation_y_ser.f64()?;
-    let rotation_z: &ChunkedArray<Float64Type>= rotation_z_ser.f64()?;
-    let rotation_w: &ChunkedArray<Float64Type>= rotation_w_ser.f64()?;
-    let offset_x: &ChunkedArray<Float64Type>= offset_x_ser.f64()?;
-    let offset_y: &ChunkedArray<Float64Type>= offset_y_ser.f64()?;
-    let offset_z: &ChunkedArray<Float64Type>= offset_z_ser.f64()?;
-
-    let mut map_x: PrimitiveChunkedBuilder<Float64Type> =
-        PrimitiveChunkedBuilder::new("x", ca.len());
-    let mut map_y: PrimitiveChunkedBuilder<Float64Type> =
-        PrimitiveChunkedBuilder::new("y", ca.len());
-    let mut map_z: PrimitiveChunkedBuilder<Float64Type> =
-        PrimitiveChunkedBuilder::new("z", ca.len());
-
-    for (ecef_x_val, ecef_y_val, ecef_z_val, rotation_x_val, rotation_y_val, rotation_z_val, rotation_w_val, offset_x_val, offset_y_val, offset_z_val) 
-        in izip!(ecef_x, ecef_y, ecef_z, rotation_x, rotation_y, rotation_z, rotation_w, offset_x, offset_y, offset_z) {
-            let ecef_vec = vec![ecef_x_val.unwrap(), ecef_y_val.unwrap(), ecef_z_val.unwrap()];
-            let rotation_vec = vec![rotation_x_val.unwrap(), rotation_y_val.unwrap(), rotation_z_val.unwrap(),rotation_w_val.unwrap()];
-            let offset_vec = vec![offset_x_val.unwrap(), offset_y_val.unwrap(), offset_z_val.unwrap()];
-
-            let (x, y, z) = ecef_to_map_elementwise(ecef_vec, rotation_vec, offset_vec);
-
-            map_x.append_value(x);
-            map_y.append_value(y);
-            map_z.append_value(z);
-        } 
-
-    let ser_map_x = map_x.finish().into_series();
-    let ser_map_y = map_y.finish().into_series();
-    let ser_map_z = map_z.finish().into_series();
-
-    let out_chunked = StructChunked::new("map", &[ser_map_x, ser_map_y, ser_map_z])?;
-    Ok(out_chunked.into_series())
+    let out_chunked = apply_rotation_to_map(ecef_ca, rotation_ca, offset_ca, "map", ecef_to_map_elementwise);
+    Ok(out_chunked?.into_series())
 
 }
 
@@ -411,6 +380,19 @@ fn lla_to_ecef(inputs: &[Series]) -> PolarsResult<Series> {
     let out_chunked = StructChunked::new("coordinates", &[ser_x, ser_y, ser_z])?;
     Ok(out_chunked.into_series())
     
+}
+
+
+#[polars_expr(output_type_func=map_output)]
+fn rotate_map_coords(inputs: &[Series]) -> PolarsResult<Series> {
+
+    let map_ca = inputs[0].struct_()?;
+    let rotation_ca = inputs[1].struct_()?;
+    let scale_ca = inputs[2].struct_()?;
+
+    let out_chunked = apply_rotation_to_map(map_ca, rotation_ca, scale_ca, "map", rotate_map_coords_elementwise);
+    
+    Ok(out_chunked?.into_series())
 
 }
 
