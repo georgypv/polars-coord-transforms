@@ -1,5 +1,6 @@
 mod s2_functions;
 mod coord_transforms;
+mod distance;
 mod expressions;
 
 #[cfg(target_os = "linux")]

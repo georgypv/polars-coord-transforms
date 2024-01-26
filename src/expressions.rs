@@ -8,7 +8,34 @@ use serde::Deserialize;
 
 use crate::s2_functions::*;
 use crate::coord_transforms::*;
+use crate::distance::*;
 
+fn unpack_xyz(ca: &StructChunked, lonlat: bool) -> (
+    Series,
+    Series,
+    Series
+) {
+    
+    let (field_x, field_y, field_z) = if lonlat {
+        ("lon", "lat", "alt")
+    } else {
+        ("x", "y", "z")
+    };
+
+    let x: Series = match ca.field_by_name(field_x) {
+        Ok(series) => series,
+        Err(_) => panic!("Field `x` not found in `{}`!", &ca.name())
+    };
+    let y: Series = match ca.field_by_name(field_y) {
+        Ok(field) => field,
+        Err(_) => panic!("Field `y` not found in `{}`!", &ca.name())
+    };
+    let z: Series = match ca.field_by_name(field_z) {
+        Ok(field) => field,
+        Err(_) => panic!("Field `z` not found in `{}`!", &ca.name())
+    };
+    (x, y, z)
+} 
 
 fn apply_rotation_to_map(
     coords_ca: &StructChunked,
@@ -18,27 +45,11 @@ fn apply_rotation_to_map(
     func_elementwise: impl Fn(Vec<f64>, Vec<f64>, Vec<f64>) -> (f64, f64, f64)
     ) -> Result<StructChunked, PolarsError> {
     
-        let x_ser = coords_ca.field_by_name("x").unwrap();
-        let y_ser = coords_ca.field_by_name("y").unwrap();
-        let z_ser = coords_ca.field_by_name("z").unwrap();
-        let rotation_x_ser = rotation_ca.field_by_name("x").unwrap();
-        let rotation_y_ser = rotation_ca.field_by_name("y").unwrap();
-        let rotation_z_ser = rotation_ca.field_by_name("z").unwrap();
-        let rotation_w_ser = rotation_ca.field_by_name("w").unwrap();
-        let offset_x_ser = offset_ca.field_by_name("x").unwrap();
-        let offset_y_ser = offset_ca.field_by_name("y").unwrap();
-        let offset_z_ser = offset_ca.field_by_name("z").unwrap();
-    
-        let x_ca: &ChunkedArray<Float64Type>= x_ser.f64().unwrap();
-        let y_ca: &ChunkedArray<Float64Type>= y_ser.f64().unwrap();
-        let z_ca: &ChunkedArray<Float64Type>= z_ser.f64().unwrap();
-        let rotation_x: &ChunkedArray<Float64Type>= rotation_x_ser.f64().unwrap();
-        let rotation_y: &ChunkedArray<Float64Type>= rotation_y_ser.f64().unwrap();
-        let rotation_z: &ChunkedArray<Float64Type>= rotation_z_ser.f64().unwrap();
-        let rotation_w: &ChunkedArray<Float64Type>= rotation_w_ser.f64().unwrap();
-        let offset_x: &ChunkedArray<Float64Type>= offset_x_ser.f64().unwrap();
-        let offset_y: &ChunkedArray<Float64Type>= offset_y_ser.f64().unwrap();
-        let offset_z: &ChunkedArray<Float64Type>= offset_z_ser.f64().unwrap();
+        let (x_ser, y_ser, z_ser) = unpack_xyz(coords_ca, false);
+        let (rotation_x, rotation_y, rotation_z) = unpack_xyz(offset_ca, false);
+        let rotation_w = rotation_ca.field_by_name("w").expect("Unable to find `w` field for rotation!");
+        
+        let (offset_x, offset_y, offset_z) = unpack_xyz(offset_ca, false);
     
         let mut x_cb: PrimitiveChunkedBuilder<Float64Type> =
             PrimitiveChunkedBuilder::new("x", coords_ca.len());
@@ -47,7 +58,18 @@ fn apply_rotation_to_map(
         let mut z_cb: PrimitiveChunkedBuilder<Float64Type> =
             PrimitiveChunkedBuilder::new("z", coords_ca.len());
         for (x_val, y_val, z_val, rotation_x_val, rotation_y_val, rotation_z_val, rotation_w_val, offset_x_val, offset_y_val, offset_z_val) 
-            in izip!(x_ca, y_ca, z_ca, rotation_x, rotation_y, rotation_z, rotation_w, offset_x, offset_y, offset_z) {
+            in izip!(
+                x_ser.f64().unwrap(),
+                y_ser.f64().unwrap(),
+                z_ser.f64().unwrap(),
+                rotation_x.f64().unwrap(),
+                rotation_y.f64().unwrap(),
+                rotation_z.f64().unwrap(),
+                rotation_w.f64().unwrap(), 
+                offset_x.f64().unwrap(), 
+                offset_y.f64().unwrap(), 
+                offset_z.f64().unwrap()
+            ) {
                 let map_vec = vec![x_val.unwrap(), y_val.unwrap(), z_val.unwrap()];
                 let rotation_vec = vec![rotation_x_val.unwrap(), rotation_y_val.unwrap(), rotation_z_val.unwrap(),rotation_w_val.unwrap()];
                 let offset_vec = vec![offset_x_val.unwrap(), offset_y_val.unwrap(), offset_z_val.unwrap()];
@@ -396,3 +418,60 @@ fn rotate_map_coords(inputs: &[Series]) -> PolarsResult<Series> {
 
 }
 
+
+
+//distance
+#[polars_expr(output_type=Float64)]
+fn euclidean_2d(inputs: &[Series]) -> PolarsResult<Series> {
+    let ca1: &StructChunked = inputs[0].struct_()?;
+    let ca2: &StructChunked = inputs[1].struct_()?;
+
+    let (x1, y1, _z1) = unpack_xyz(ca1, false);
+    let (x2, y2, _z2) = unpack_xyz(ca2, false);
+
+    let iter = izip!(
+        x1.f64().unwrap(),
+        y1.f64().unwrap(), 
+        x2.f64().unwrap(), 
+        y2.f64().unwrap()
+    ).into_iter().map(
+        |(x1_op, y1_op, x2_op, y2_op)| {
+            match (x1_op, y1_op, x2_op, y2_op) {
+                (Some(x1), Some(y1), Some(x2), Some(y2)) => euclidean_2d_elementwise(x1, y1, x2, y2),
+                _ => panic!("Unable to find euclidean distance!")
+        }
+    });
+
+    let out_ca: ChunkedArray<Float64Type> = iter.collect_ca_with_dtype("distance", DataType::Float64);
+    Ok(out_ca.into_series())
+
+}
+
+
+#[polars_expr(output_type=Float64)]
+fn euclidean_3d(inputs: &[Series]) -> PolarsResult<Series> {
+    let ca1: &StructChunked = inputs[0].struct_()?;
+    let ca2: &StructChunked = inputs[1].struct_()?;
+
+    let (x1, y1, z1) = unpack_xyz(ca1, false);
+    let (x2, y2, z2) = unpack_xyz(ca2, false);
+
+    let iter = izip!(
+        x1.f64().unwrap(), 
+        y1.f64().unwrap(),
+        z1.f64().unwrap(), 
+        x2.f64().unwrap(), 
+        y2.f64().unwrap(), 
+        z2.f64().unwrap()
+        ).into_iter().map(
+        |(x1_op, y1_op, z1_op, x2_op, y2_op, z2_op)| {
+            match (x1_op, y1_op, z1_op, x2_op, y2_op, z2_op) {
+                (Some(x1), Some(y1), Some(z1), Some(x2), Some(y2), Some(z2),) => euclidean_3d_elementwise(x1, y1, z1, x2, y2, z2),
+                _ => panic!("Unable to find euclidean distance!")
+        }
+    });
+
+    let out_ca: ChunkedArray<Float64Type> = iter.collect_ca_with_dtype("distance", DataType::Float64);
+    Ok(out_ca.into_series())
+
+}

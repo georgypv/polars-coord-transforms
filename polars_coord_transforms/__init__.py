@@ -79,6 +79,28 @@ class TransformNameSpace:
             args=[rotation, scale],
         )
 
+@pl.api.register_expr_namespace("distance")
+class DistanceNameSpace:
+
+    def __init__(self, expr: pl.Expr):
+        self._expr = expr
+
+    def euclidean_3d(self, other: pl.Expr) -> pl.Expr:
+        return self._expr.register_plugin(
+            lib=lib,
+            symbol="euclidean_3d",
+            is_elementwise=True,
+            args=[other],
+        )
+
+    def euclidean_2d(self, other: pl.Expr) -> pl.Expr:
+        return self._expr.register_plugin(
+            lib=lib,
+            symbol="euclidean_2d",
+            is_elementwise=True,
+            args=[other],
+        )
+
 
 class CoordTransformExpr(pl.Expr):
     @property
@@ -87,6 +109,10 @@ class CoordTransformExpr(pl.Expr):
 
     @property
     def transform(self) -> TransformNameSpace:
+        return TransformNameSpace(self)
+    
+    @property
+    def distance(self) -> DistanceNameSpace:
         return TransformNameSpace(self)
 
 
@@ -107,6 +133,10 @@ class CTColumn(Protocol):
 
     @property
     def transform(self) -> TransformNameSpace:
+        ...
+
+    @property
+    def distance(self) -> DistanceNameSpace:
         ...
 
 
