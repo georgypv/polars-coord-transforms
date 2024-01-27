@@ -504,9 +504,9 @@ fn euclidean_3d(inputs: &[Series]) -> PolarsResult<Series> {
     let (x2, y2, z2) = unpack_xyz(ca2, false);
 
     let iter = izip!(
+        x1.f64()?,
         y1.f64()?,
-        z1.f64()?, 
-        x1.f64()?, 
+        z1.f64()?,  
         x2.f64()?, 
         y2.f64()?, 
         z2.f64()?
