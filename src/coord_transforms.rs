@@ -1,5 +1,6 @@
 extern crate nalgebra as na;
 
+use utm::{to_utm_wgs84_no_zone, lat_lon_to_zone_number};
 use na::{Vector3, Vector4, Quaternion, UnitQuaternion, Rotation3};
 use map_3d::{ecef2geodetic, geodetic2ecef, rad2deg, deg2rad, Ellipsoid};
 
@@ -32,6 +33,19 @@ pub fn ecef_to_lla_elementwise(x: f64, y: f64, z: f64) -> (f64, f64, f64) {
 pub fn lla_to_ecef_elementwise(lon: f64, lat: f64, alt: f64) -> (f64, f64, f64) {
     let (x, y, z) = geodetic2ecef(deg2rad(lat), deg2rad(lon), alt, Ellipsoid::WGS84);
     (x, y, z)
+}
+
+
+#[warn(dead_code)]
+pub fn lla_to_utm_zone_number_elementwise(lon: f64, lat: f64) -> u8 {
+    let zone_number = lat_lon_to_zone_number(lat, lon);
+    zone_number
+}   
+
+
+pub fn lla_to_utm_elementwise(lon: f64, lat: f64, alt: f64) -> (f64, f64, f64) {
+    let (northing, easting, _meridian_convergence) = to_utm_wgs84_no_zone(lat, lon);
+    (easting, northing, alt)
 }
 
 

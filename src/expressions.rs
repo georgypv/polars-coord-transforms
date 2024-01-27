@@ -315,9 +315,7 @@ fn ecef_to_lla(inputs: &[Series]) -> PolarsResult<Series> {
 
     let ca = inputs[0].struct_()?;
 
-    let ecef_x_ser = ca.field_by_name("x")?;
-    let ecef_y_ser = ca.field_by_name("y")?;
-    let ecef_z_ser = ca.field_by_name("z")?;
+    let (ecef_x_ser, ecef_y_ser, ecef_z_ser) = unpack_xyz(ca, false);
 
     let ecef_x = ecef_x_ser.f64()?;
     let ecef_y = ecef_y_ser.f64()?;
@@ -363,9 +361,7 @@ fn lla_to_ecef(inputs: &[Series]) -> PolarsResult<Series> {
 
     let ca = inputs[0].struct_()?;
 
-    let lon_ser = ca.field_by_name("lon")?;
-    let lat_ser = ca.field_by_name("lat")?;
-    let alt_ser = ca.field_by_name("alt")?;
+    let (lon_ser, lat_ser, alt_ser) = unpack_xyz(ca, true);
 
     let lon = lon_ser.f64()?;
     let lat = lat_ser.f64()?;
@@ -405,6 +401,59 @@ fn lla_to_ecef(inputs: &[Series]) -> PolarsResult<Series> {
 }
 
 
+fn utm_output(_: &[Field]) -> PolarsResult<Field> {
+    let v: Vec<Field> = vec![
+        Field::new("x", DataType::Float64),
+        Field::new("y", DataType::Float64),
+        Field::new("z", DataType::Float64),
+    ];
+    Ok(Field::new("utm", DataType::Struct(v)))
+}
+
+#[polars_expr(output_type_func=utm_output)]
+fn lla_to_utm(inputs: &[Series]) -> PolarsResult<Series> {
+    
+    let coords_ca = inputs[0].struct_()?;
+    let (lon_ser, lat_ser, alt_ser) = unpack_xyz(coords_ca, true);
+
+    let mut utm_x: PrimitiveChunkedBuilder<Float64Type> =
+        PrimitiveChunkedBuilder::new("x", coords_ca.len());
+    let mut utm_y: PrimitiveChunkedBuilder<Float64Type> =
+        PrimitiveChunkedBuilder::new("y", coords_ca.len());
+    let mut utm_z: PrimitiveChunkedBuilder<Float64Type> =
+        PrimitiveChunkedBuilder::new("z", coords_ca.len());
+
+    for (lon_op, lat_op, alt_op) in izip!(
+        lon_ser.f64()?,
+        lat_ser.f64()?,
+        alt_ser.f64()?
+    ) {
+        match (lon_op, lat_op, alt_op) {
+            (Some(lon), Some(lat), Some(alt)) => {
+                let (easting, northing, alt) = lla_to_utm_elementwise(lon, lat, alt);
+                utm_x.append_value(easting);
+                utm_y.append_value(northing);
+                utm_z.append_value(alt);
+
+            },
+            _ => {
+                utm_x.append_null();
+                utm_y.append_null();
+                utm_z.append_null();
+
+            }
+        }
+    }
+    let ser_x = utm_x.finish().into_series();   
+    let ser_y = utm_y.finish().into_series();    
+    let ser_z = utm_z.finish().into_series();    
+    
+    let out_chunked: StructChunked = StructChunked::new("utm", &[ser_x, ser_y, ser_z])?;
+    Ok(out_chunked.into_series())
+
+}   
+
+
 #[polars_expr(output_type_func=map_output)]
 fn rotate_map_coords(inputs: &[Series]) -> PolarsResult<Series> {
 
@@ -418,8 +467,6 @@ fn rotate_map_coords(inputs: &[Series]) -> PolarsResult<Series> {
 
 }
 
-
-
 //distance
 #[polars_expr(output_type=Float64)]
 fn euclidean_2d(inputs: &[Series]) -> PolarsResult<Series> {
@@ -430,10 +477,10 @@ fn euclidean_2d(inputs: &[Series]) -> PolarsResult<Series> {
     let (x2, y2, _z2) = unpack_xyz(ca2, false);
 
     let iter = izip!(
-        x1.f64().unwrap(),
-        y1.f64().unwrap(), 
-        x2.f64().unwrap(), 
-        y2.f64().unwrap()
+        x1.f64()?,
+        y1.f64()?, 
+        x2.f64()?, 
+        y2.f64()?
     ).into_iter().map(
         |(x1_op, y1_op, x2_op, y2_op)| {
             match (x1_op, y1_op, x2_op, y2_op) {
@@ -457,12 +504,12 @@ fn euclidean_3d(inputs: &[Series]) -> PolarsResult<Series> {
     let (x2, y2, z2) = unpack_xyz(ca2, false);
 
     let iter = izip!(
-        x1.f64().unwrap(), 
-        y1.f64().unwrap(),
-        z1.f64().unwrap(), 
-        x2.f64().unwrap(), 
-        y2.f64().unwrap(), 
-        z2.f64().unwrap()
+        y1.f64()?,
+        z1.f64()?, 
+        x1.f64()?, 
+        x2.f64()?, 
+        y2.f64()?, 
+        z2.f64()?
         ).into_iter().map(
         |(x1_op, y1_op, z1_op, x2_op, y2_op, z2_op)| {
             match (x1_op, y1_op, z1_op, x2_op, y2_op, z2_op) {
