@@ -78,10 +78,10 @@ class TransformNameSpace:
             is_elementwise=True
         )
     
-    def lla_to_utm_zone(self) -> pl.Expr:
+    def lla_to_utm_zone_number(self) -> pl.Expr:
         return self._expr.register_plugin(
             lib=lib,
-            symbol="lla_to_utm_zone",
+            symbol="lla_to_utm_zone_number",
             is_elementwise=True
         )
 

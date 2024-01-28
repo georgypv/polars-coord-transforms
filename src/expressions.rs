@@ -1,10 +1,7 @@
 use itertools::Itertools;
-use polars_core::chunked_array::builder::Utf8ChunkedBuilderCow;
 use polars::prelude::*;
 use polars::datatypes::DataType;
 use pyo3_polars::derive::polars_expr;
-
-use std::borrow::Cow;
 
 use itertools::izip;
 use serde::Deserialize;
@@ -457,16 +454,9 @@ fn lla_to_utm(inputs: &[Series]) -> PolarsResult<Series> {
 }   
 
 
-fn utm_zone_output(_: &[Field]) -> PolarsResult<Field> {
-    let v: Vec<Field> = vec![
-        Field::new("utm_zone_number", DataType::UInt8),
-        Field::new("utm_zone_letter", DataType::Utf8),
-    ];
-    Ok(Field::new("utm_zone", DataType::Struct(v)))
-}
 
-#[polars_expr(output_type_func=utm_zone_output)]
-fn lla_to_utm_zone(inputs: &[Series]) -> PolarsResult<Series> {
+#[polars_expr(output_type=UInt8)]
+fn lla_to_utm_zone_number(inputs: &[Series]) -> PolarsResult<Series> {
     
     let coords_ca = inputs[0].struct_()?;
     let (lon_ser, lat_ser, _alt_ser) = unpack_xyz(coords_ca, true);
@@ -474,7 +464,6 @@ fn lla_to_utm_zone(inputs: &[Series]) -> PolarsResult<Series> {
 
     let mut utm_number_cb: PrimitiveChunkedBuilder<UInt8Type> =
         PrimitiveChunkedBuilder::new("utm_zone_number", coords_ca.len());
-    let mut utm_letter_cb: Utf8ChunkedBuilderCow = Utf8ChunkedBuilderCow::new("utm_zone_letter", coords_ca.len());
 
     for (lon_op, lat_op) in izip!(
         lon_ser.f64()?,
@@ -482,23 +471,17 @@ fn lla_to_utm_zone(inputs: &[Series]) -> PolarsResult<Series> {
     ) {
         match (lon_op, lat_op) {
             (Some(lon), Some(lat)) => {
-                let (utm_number, utm_letter,) = lla_to_utm_zone_elementwise(lon, lat);
+                let utm_number = lla_to_utm_zone_number_elementwise(lon, lat);
                 utm_number_cb.append_value(utm_number);
-                utm_letter_cb.append_value(Cow::Owned(String::from(utm_letter)));
-                
             },
             _ => {
                 utm_number_cb.append_null();
-                utm_letter_cb.append_null();
 
             }
         }
     }
     let ser_utm_number = utm_number_cb.finish().into_series();   
-    let ser_utm_letter = utm_letter_cb.finish().into_series();    
-    
-    let out_chunked: StructChunked = StructChunked::new("utm_zone", &[ser_utm_number, ser_utm_letter])?;
-    Ok(out_chunked.into_series())
+    Ok(ser_utm_number)
 
 }   
 

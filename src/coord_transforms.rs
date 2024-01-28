@@ -1,6 +1,6 @@
 extern crate nalgebra as na;
 
-use utm::{to_utm_wgs84_no_zone, lat_lon_to_zone_number, lat_to_zone_letter};
+use utm::{to_utm_wgs84_no_zone, lat_lon_to_zone_number};
 use na::{Vector3, Vector4, Quaternion, UnitQuaternion, Rotation3};
 use map_3d::{ecef2geodetic, geodetic2ecef, rad2deg, deg2rad, Ellipsoid};
 
@@ -37,10 +37,9 @@ pub fn lla_to_ecef_elementwise(lon: f64, lat: f64, alt: f64) -> (f64, f64, f64) 
 
 
 
-pub fn lla_to_utm_zone_elementwise(lon: f64, lat: f64) -> (u8, char) {
+pub fn lla_to_utm_zone_number_elementwise(lon: f64, lat: f64) -> u8 {
     let zone_number = lat_lon_to_zone_number(lat, lon);
-    let zone_letter = lat_to_zone_letter(lat).expect("Unable to find UTM zone letter from latitude!");
-    (zone_number, zone_letter)
+    zone_number
 }   
 
 
