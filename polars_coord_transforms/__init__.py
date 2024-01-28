@@ -77,6 +77,13 @@ class TransformNameSpace:
             symbol="lla_to_utm",
             is_elementwise=True
         )
+    
+    def lla_to_utm_zone(self) -> pl.Expr:
+        return self._expr.register_plugin(
+            lib=lib,
+            symbol="lla_to_utm_zone",
+            is_elementwise=True
+        )
 
     def rotate_map_coords(self, rotation: pl.Expr, scale: pl.Expr) -> pl.Expr:
         return self._expr.register_plugin(

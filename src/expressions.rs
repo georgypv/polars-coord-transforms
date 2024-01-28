@@ -1,7 +1,10 @@
 use itertools::Itertools;
+use polars::chunked_array::builder::Utf8ChunkedBuilderCow;
 use polars::prelude::*;
 use polars::datatypes::DataType;
 use pyo3_polars::derive::polars_expr;
+
+use std::borrow::Cow;
 
 use itertools::izip;
 use serde::Deserialize;
@@ -46,7 +49,7 @@ fn apply_rotation_to_map(
     ) -> Result<StructChunked, PolarsError> {
     
         let (x_ser, y_ser, z_ser) = unpack_xyz(coords_ca, false);
-        let (rotation_x, rotation_y, rotation_z) = unpack_xyz(offset_ca, false);
+        let (rotation_x, rotation_y, rotation_z) = unpack_xyz(rotation_ca, false);
         let rotation_w = rotation_ca.field_by_name("w").expect("Unable to find `w` field for rotation!");
         
         let (offset_x, offset_y, offset_z) = unpack_xyz(offset_ca, false);
@@ -449,6 +452,52 @@ fn lla_to_utm(inputs: &[Series]) -> PolarsResult<Series> {
     let ser_z = utm_z.finish().into_series();    
     
     let out_chunked: StructChunked = StructChunked::new("utm", &[ser_x, ser_y, ser_z])?;
+    Ok(out_chunked.into_series())
+
+}   
+
+
+fn utm_zone_output(_: &[Field]) -> PolarsResult<Field> {
+    let v: Vec<Field> = vec![
+        Field::new("utm_zone_number", DataType::Float64),
+        Field::new("utm_zone_letter", DataType::Float64),
+    ];
+    Ok(Field::new("utm_zone", DataType::Struct(v)))
+}
+
+#[polars_expr(output_type_func=utm_zone_output)]
+fn lla_to_utm_zone(inputs: &[Series]) -> PolarsResult<Series> {
+    
+    let coords_ca = inputs[0].struct_()?;
+    let (lon_ser, lat_ser, _alt_ser) = unpack_xyz(coords_ca, true);
+
+
+    let mut utm_number_cb: PrimitiveChunkedBuilder<Int32Type> =
+        PrimitiveChunkedBuilder::new("utm_zone_number", coords_ca.len());
+    let mut utm_letter_cb: Utf8ChunkedBuilderCow = Utf8ChunkedBuilderCow::new("utm_zone_letter", coords_ca.len());
+
+    for (lon_op, lat_op) in izip!(
+        lon_ser.f64()?,
+        lat_ser.f64()?,
+    ) {
+        match (lon_op, lat_op) {
+            (Some(lon), Some(lat)) => {
+                let (utm_number, utm_letter,) = lla_to_utm_zone_elementwise(lon, lat);
+                utm_number_cb.append_value(utm_number);
+                utm_letter_cb.append_value(Cow::Owned(String::from(utm_letter)));
+                
+            },
+            _ => {
+                utm_number_cb.append_null();
+                utm_letter_cb.append_null();
+
+            }
+        }
+    }
+    let ser_utm_number = utm_number_cb.finish().into_series();   
+    let ser_utm_letter = utm_letter_cb.finish().into_series();    
+    
+    let out_chunked: StructChunked = StructChunked::new("utm_zone", &[ser_utm_number, ser_utm_letter])?;
     Ok(out_chunked.into_series())
 
 }   
