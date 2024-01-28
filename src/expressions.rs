@@ -1,5 +1,5 @@
 use itertools::Itertools;
-use polars::chunked_array::builder::Utf8ChunkedBuilderCow;
+use polars_core::chunked_array::builder::Utf8ChunkedBuilderCow;
 use polars::prelude::*;
 use polars::datatypes::DataType;
 use pyo3_polars::derive::polars_expr;
@@ -459,8 +459,8 @@ fn lla_to_utm(inputs: &[Series]) -> PolarsResult<Series> {
 
 fn utm_zone_output(_: &[Field]) -> PolarsResult<Field> {
     let v: Vec<Field> = vec![
-        Field::new("utm_zone_number", DataType::Float64),
-        Field::new("utm_zone_letter", DataType::Float64),
+        Field::new("utm_zone_number", DataType::UInt8),
+        Field::new("utm_zone_letter", DataType::Utf8),
     ];
     Ok(Field::new("utm_zone", DataType::Struct(v)))
 }
@@ -472,7 +472,7 @@ fn lla_to_utm_zone(inputs: &[Series]) -> PolarsResult<Series> {
     let (lon_ser, lat_ser, _alt_ser) = unpack_xyz(coords_ca, true);
 
 
-    let mut utm_number_cb: PrimitiveChunkedBuilder<Int32Type> =
+    let mut utm_number_cb: PrimitiveChunkedBuilder<UInt8Type> =
         PrimitiveChunkedBuilder::new("utm_zone_number", coords_ca.len());
     let mut utm_letter_cb: Utf8ChunkedBuilderCow = Utf8ChunkedBuilderCow::new("utm_zone_letter", coords_ca.len());
 

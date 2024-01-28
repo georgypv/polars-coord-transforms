@@ -9,7 +9,7 @@ crate-type = ["cdylib"]
 
 
 [dependencies]
-polars = { version = "*" , features=["dtype-struct",]}
+polars = { version = "*" , features=["dtype-struct","dtype-u8",]}
 pyo3 = { version = "*", features = ["extension-module"] }
 pyo3-polars = { version = "*", features = ["derive"] }
 serde = { version = "*", features = ["derive"] }

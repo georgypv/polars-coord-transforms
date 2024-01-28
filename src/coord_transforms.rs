@@ -37,10 +37,10 @@ pub fn lla_to_ecef_elementwise(lon: f64, lat: f64, alt: f64) -> (f64, f64, f64) 
 
 
 
-pub fn lla_to_utm_zone_elementwise(lon: f64, lat: f64) -> (i32, char) {
+pub fn lla_to_utm_zone_elementwise(lon: f64, lat: f64) -> (u8, char) {
     let zone_number = lat_lon_to_zone_number(lat, lon);
     let zone_letter = lat_to_zone_letter(lat).expect("Unable to find UTM zone letter from latitude!");
-    (zone_number as i32, zone_letter)
+    (zone_number, zone_letter)
 }   
 
 
