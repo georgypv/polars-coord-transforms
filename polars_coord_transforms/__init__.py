@@ -92,6 +92,18 @@ class TransformNameSpace:
             is_elementwise=True,
             args=[rotation, scale],
         )
+    
+    def interpolate_linear(self, other: pl.Expr, coef=0.5):
+        if coef < 0 or coef > 1:
+            raise ValueError("`coef` parameter must be between 0 and 1!")
+
+        return self._expr.register_plugin(
+            lib=lib,
+            symbol="interpolate_linear",
+            is_elementwise=True,
+            args=[other,],
+            kwargs={"coef": coef},
+        )
 
 @pl.api.register_expr_namespace("distance")
 class DistanceNameSpace:

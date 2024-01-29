@@ -58,6 +58,12 @@ pub fn rotate_map_coords_elementwise(map_coords: Vec<f64>, rotation: Vec<f64>, s
 }
 
 
+pub fn interpolate_linear_elementwise(coords: Vec<f64>, other: Vec<f64>, coef: f64) -> (f64, f64, f64) {
+    let interpolated = (Vector3::from_vec(coords) * coef) + (Vector3::from_vec(other) * (1.0 - coef));
+    (interpolated.x, interpolated.y, interpolated.z)
+}   
+
+
 #[cfg(test)]
 mod transform_tests { 
     use crate::coord_transforms::{map_to_ecef_elementwise, ecef_to_lla_elementwise};

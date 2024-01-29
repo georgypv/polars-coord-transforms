@@ -255,6 +255,72 @@ fn cellid_to_vertices(inputs: &[Series]) -> PolarsResult<Series> {
 
 
 //TransfromNameSpace
+#[derive(Deserialize)]
+struct TransformInterpolateKwargs {
+    coef: f64
+}
+
+fn output_3d(_: &[Field]) -> PolarsResult<Field> {
+    let v: Vec<Field> = vec![
+        Field::new("x", DataType::Float64),
+        Field::new("y", DataType::Float64),
+        Field::new("z", DataType::Float64),
+    ];
+    Ok(Field::new("coords", DataType::Struct(v)))
+}
+
+#[polars_expr(output_type_func=output_3d)]
+fn interpolate_linear(inputs: &[Series], kwargs: TransformInterpolateKwargs) -> PolarsResult<Series> {
+
+    let ca = inputs[0].struct_()?;
+    let ca_other = inputs[1].struct_()?;
+
+
+    let (x_ser, y_ser, z_ser) = unpack_xyz(ca, false);
+    let (x_other_ser, y_other_ser, z_other_ser) = unpack_xyz(ca_other, false);
+
+    let mut x_cb: PrimitiveChunkedBuilder<Float64Type> =
+        PrimitiveChunkedBuilder::new("x", ca.len());
+    let mut y_cb: PrimitiveChunkedBuilder<Float64Type> =
+        PrimitiveChunkedBuilder::new("y", ca.len());
+    let mut z_cb: PrimitiveChunkedBuilder<Float64Type> =
+        PrimitiveChunkedBuilder::new("z", ca.len());
+
+    for (x_op, y_op, z_op, x_other_op, y_other_op, z_other_op) in izip!(
+        x_ser.f64()?.into_iter(),
+        y_ser.f64()?.into_iter(),
+        z_ser.f64()?.into_iter(),
+        x_other_ser.f64()?.into_iter(),
+        y_other_ser.f64()?.into_iter(),
+        z_other_ser.f64()?.into_iter()
+    ) {
+            match (x_op, y_op, z_op, x_other_op, y_other_op, z_other_op) {
+                (Some(x), Some(y), Some(z), Some(x_other), Some(y_other), Some(z_other)) => {
+
+                    let (x_interpolated, y_interpolated, z_interpolated) = interpolate_linear_elementwise(vec![x, y, z], vec![x_other, y_other, z_other], kwargs.coef);
+                    x_cb.append_value(x_interpolated);
+                    y_cb.append_value(y_interpolated);
+                    z_cb.append_value(z_interpolated);
+                },
+                _ => {
+                    x_cb.append_null();
+                    y_cb.append_null();
+                    z_cb.append_null();
+                }
+            }
+    }
+
+    let ser_x = x_cb.finish().into_series();
+    let ser_y = y_cb.finish().into_series();
+    let ser_z = z_cb.finish().into_series();
+
+    let out_chunked = StructChunked::new("coords", &[ser_x, ser_y, ser_z])?;
+    Ok(out_chunked.into_series())
+
+}
+
+
+
 fn ecef_output(_: &[Field]) -> PolarsResult<Field> {
     let v: Vec<Field> = vec![
         Field::new("x", DataType::Float64),
