@@ -114,6 +114,14 @@ class DistanceNameSpace:
             is_elementwise=True,
             args=[other],
         )
+    
+    def cosine_similarity_2d(self, other: pl.Expr) -> pl.Expr:
+        return self._expr.register_plugin(
+            lib=lib,
+            symbol="cosine_similarity_2d",
+            is_elementwise=True,
+            args=[other,]
+        )
 
 
 class CoordTransformExpr(pl.Expr):
