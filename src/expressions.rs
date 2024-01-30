@@ -594,6 +594,34 @@ fn euclidean_2d(inputs: &[Series]) -> PolarsResult<Series> {
 
 
 #[polars_expr(output_type=Float64)]
+fn euclidean_3d(inputs: &[Series]) -> PolarsResult<Series> {
+    let ca1: &StructChunked = inputs[0].struct_()?;
+    let ca2: &StructChunked = inputs[1].struct_()?;
+
+    let (x1, y1, z1) = unpack_xyz(ca1, false);
+    let (x2, y2, z2) = unpack_xyz(ca2, false);
+
+    let iter = izip!(
+        x1.f64()?,
+        y1.f64()?,
+        z1.f64()?,  
+        x2.f64()?, 
+        y2.f64()?, 
+        z2.f64()?
+        ).into_iter().map(
+        |(x1_op, y1_op, z1_op, x2_op, y2_op, z2_op)| {
+            match (x1_op, y1_op, z1_op, x2_op, y2_op, z2_op) {
+                (Some(x1), Some(y1), Some(z1), Some(x2), Some(y2), Some(z2),) => euclidean_3d_elementwise(x1, y1, z1, x2, y2, z2),
+                _ => panic!("Unable to find euclidean distance!")
+        }
+    });
+
+    let out_ca: ChunkedArray<Float64Type> = iter.collect_ca_with_dtype("distance", DataType::Float64);
+    Ok(out_ca.into_series())
+}
+
+
+#[polars_expr(output_type=Float64)]
 fn cosine_similarity_2d(inputs: &[Series]) -> PolarsResult<Series> {
     let ca1: &StructChunked = inputs[0].struct_()?;
     let ca2: &StructChunked = inputs[1].struct_()?;
@@ -622,7 +650,7 @@ fn cosine_similarity_2d(inputs: &[Series]) -> PolarsResult<Series> {
 
 
 #[polars_expr(output_type=Float64)]
-fn euclidean_3d(inputs: &[Series]) -> PolarsResult<Series> {
+fn cosine_similarity_3d(inputs: &[Series]) -> PolarsResult<Series> {
     let ca1: &StructChunked = inputs[0].struct_()?;
     let ca2: &StructChunked = inputs[1].struct_()?;
 
@@ -631,20 +659,20 @@ fn euclidean_3d(inputs: &[Series]) -> PolarsResult<Series> {
 
     let iter = izip!(
         x1.f64()?,
-        y1.f64()?,
-        z1.f64()?,  
+        y1.f64()?, 
+        z1.f64()?, 
         x2.f64()?, 
-        y2.f64()?, 
-        z2.f64()?
-        ).into_iter().map(
+        y2.f64()?,
+        z2.f64()?,
+    ).into_iter().map(
         |(x1_op, y1_op, z1_op, x2_op, y2_op, z2_op)| {
             match (x1_op, y1_op, z1_op, x2_op, y2_op, z2_op) {
-                (Some(x1), Some(y1), Some(z1), Some(x2), Some(y2), Some(z2),) => euclidean_3d_elementwise(x1, y1, z1, x2, y2, z2),
-                _ => panic!("Unable to find euclidean distance!")
+                (Some(x1), Some(y1), Some(z1), Some(x2), Some(y2), Some(z2)) => cosine_similarity_3d_elementwise(x1, y1, z1, x2, y2, z2),
+                _ => panic!("Unable to find cosine similarity!")
         }
     });
 
-    let out_ca: ChunkedArray<Float64Type> = iter.collect_ca_with_dtype("distance", DataType::Float64);
+    let out_ca: ChunkedArray<Float64Type> = iter.collect_ca_with_dtype("cosine_similarity", DataType::Float64);
     Ok(out_ca.into_series())
 
 }
