@@ -82,7 +82,7 @@ df.head()
 df.with_columns(
     cellid_30=pl.col("lla").s2.lonlat_to_cellid(level=30),
     cellid_28=pl.col("lla").s2.lonlat_to_cellid(level=28),
-    cellid_10=pl.col("lla").s2.lonlat_to_cellid(level=5),
+    cellid_5=pl.col("lla").s2.lonlat_to_cellid(level=5),
 ).head()
 ```
 
