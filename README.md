@@ -2,7 +2,7 @@
 
 This Polars plugin provides functionality which can be loosely described as tranformation of coordinates and extraction of features from them.
 
- It contains functions which were acutely needed in personal and work projects, therefore its set of features might appear a bit random. Nevertheless one can find it useful in projects related to robotics, geospatial science etc. 
+ It contains functions which were needed in personal and work projects, therefore its set of features might appear a bit random. Nevertheless one can find it useful in projects related to robotics, geospatial science, spatial analytics etc. 
 
 The functions are divided among three namespaces: `transform`, `s2`, `distance`:
 
@@ -76,7 +76,7 @@ df.with_columns(
 df.head()
 ```
 
-`s2`
+#### `s2`
 
 ```
 df.with_columns(
@@ -92,7 +92,7 @@ df.with_columns(
 )
 ```
 
-`distance`
+#### `distance`
 
 ```
 df.with_columns(
