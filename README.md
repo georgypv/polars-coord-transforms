@@ -12,6 +12,8 @@ The functions are divided among three namespaces: `transform`, `s2`, `distance`:
 
 - `distance` namespace allows to calculate distances between coordinates.
 
+This plugin presupposes that coordianates represent points in space and that they are expressed with `struct` datatype in Polars.
+
 
 # Getting Started
 
@@ -52,6 +54,8 @@ df.with_columns(
 
 #### `transform`
 
+##### Transform coordinates from map reference frame to ECEF (Earth-Ceneterd, Earth-Fixed) coordinate system using a rotation quaternion and an offset vector.
+
 ```
 df.with_columns(
     ecef=pl.col("pose").transform.map_to_ecef(
@@ -60,7 +64,7 @@ df.with_columns(
 ).head()
 ```
 
-
+##### Transform coordinates from ECEF to LLA (Longitude, Latitude, Altitude)
 ```
 df.with_columns(
     lla=pl.col("ecef").transform.ecef_to_lla()
@@ -68,6 +72,7 @@ df.with_columns(
 df.head()
 ```
 
+##### Transform coordinates from LLA to UTM coordinates (UTM zone is derived from coordinates themselves)
 
 ```
 df.with_columns(
@@ -78,6 +83,8 @@ df.head()
 
 #### `s2`
 
+##### Find S2 Cell ID of a LLA point (with a given cell level)
+
 ```
 df.with_columns(
     cellid_30=pl.col("lla").s2.lonlat_to_cellid(level=30),
@@ -86,6 +93,7 @@ df.with_columns(
 ).head()
 ```
 
+##### Find whether a given LLA point is in a S2 Cell identified by a specific ID
 ```
 df.with_columns(
     is_in_cell=pl.col("cellid").s2.cell_contains_point(pl.col("lla_points"))
@@ -94,17 +102,18 @@ df.with_columns(
 
 #### `distance`
 
+##### Find Euclidean distance between two points using all 3 components of a point-vector
+
 ```
 df.with_columns(
     distance=pl.col("point_1").distance.euclidean_3d(pl.col("point_2"))
 )
 ```
 
+##### Find cosine similarity between between two points using all 3 components of a point-vector
 
 ```
 df.with_columns(
     cosine_sim=pl.col("point_1").distance.cosine_similarity_3d(pl.col("point_2"))
 )
 ```
-
-
