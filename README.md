@@ -20,7 +20,7 @@ This plugin presupposes that coordianates represent points in space and that the
 ### Installation
 
 ```
-pip install poalrs-coord-transforms
+pip install polars-coord-transforms
 ```
 
 ### Usage 
