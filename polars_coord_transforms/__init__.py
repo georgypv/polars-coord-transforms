@@ -104,6 +104,13 @@ class TransformNameSpace:
             args=[other,],
             kwargs={"coef": coef},
         )
+    
+    def quat_to_euler_angles(self) -> pl.Expr:
+        return self._expr.register_plugin(
+            lib=lib,
+            symbol="quat_to_euler_angles",
+            is_elementwise=True
+        )
 
 @pl.api.register_expr_namespace("distance")
 class DistanceNameSpace:

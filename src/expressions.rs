@@ -562,6 +562,53 @@ fn rotate_map_coords(inputs: &[Series]) -> PolarsResult<Series> {
     Ok(out_chunked?.into_series())
 }
 
+fn euler_angles_output(_: &[Field]) -> PolarsResult<Field> {
+    let v: Vec<Field> = vec![
+        Field::new("roll", DataType::Float64),
+        Field::new("pitch", DataType::Float64),
+        Field::new("yaw", DataType::Float64),
+    ];
+    Ok(Field::new("euler_angles", DataType::Struct(v)))
+}
+
+#[polars_expr(output_type_func=euler_angles_output)]
+fn quat_to_euler_angles(inputs: &[Series]) -> PolarsResult<Series> {
+    let ca = inputs[0].struct_()?;
+    let mut roll_cb: PrimitiveChunkedBuilder<Float64Type> =
+        PrimitiveChunkedBuilder::new("roll", ca.len());
+    let mut pitch_cb: PrimitiveChunkedBuilder<Float64Type> =
+        PrimitiveChunkedBuilder::new("pitch", ca.len());
+    let mut yaw_cb: PrimitiveChunkedBuilder<Float64Type> =
+        PrimitiveChunkedBuilder::new("yaw", ca.len());
+
+    let (x, y, z) = unpack_xyz(ca, false);
+    let w = ca.field_by_name("w")?;
+
+    for (x_op, y_op, z_op, w_op) in izip!(x.f64()?, y.f64()?, z.f64()?, w.f64()?) {
+        match (x_op, y_op, z_op, w_op) {
+            (Some(x), Some(y), Some(z), Some(w)) => {
+                let euler_angles = quat_to_euler_angles_elementwise(vec![x, y, z, w]);
+                roll_cb.append_value(euler_angles.0);
+                pitch_cb.append_value(euler_angles.1);
+                yaw_cb.append_value(euler_angles.2);
+            }
+            _ => {
+                roll_cb.append_null();
+                pitch_cb.append_null();
+                yaw_cb.append_null();
+            }
+        }
+    }
+
+    let roll_ser = roll_cb.finish().into_series();
+    let pitch_ser = pitch_cb.finish().into_series();
+    let yaw_ser = yaw_cb.finish().into_series();
+
+    let out_chunked: StructChunked =
+        StructChunked::new("euler_angles", &[roll_ser, pitch_ser, yaw_ser])?;
+    Ok(out_chunked.into_series())
+}
+
 //distance
 #[polars_expr(output_type=Float64)]
 fn euclidean_2d(inputs: &[Series]) -> PolarsResult<Series> {

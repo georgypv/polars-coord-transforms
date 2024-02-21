@@ -79,9 +79,17 @@ pub fn interpolate_linear_elementwise(
     (interpolated.x, interpolated.y, interpolated.z)
 }
 
+pub fn quat_to_euler_angles_elementwise(quat: Vec<f64>) -> (f64, f64, f64) {
+    let quat: na::Unit<Quaternion<f64>> =
+        UnitQuaternion::from_quaternion(Quaternion::from_vector(Vector4::from_vec(quat)));
+    quat.euler_angles()
+}
+
 #[cfg(test)]
 mod transform_tests {
     use crate::coord_transforms::{ecef_to_lla_elementwise, map_to_ecef_elementwise};
+
+    use super::quat_to_euler_angles_elementwise;
 
     #[test]
     fn test_map_to_ecef() {
@@ -109,5 +117,18 @@ mod transform_tests {
             ecef_to_lla_elementwise(ecef_coords.0, ecef_coords.1, ecef_coords.2),
             expected_result
         )
+    }
+
+    #[test]
+    fn test_quat_to_yaw() {
+        let quat: Vec<f64> = vec![
+            0.001502928827181121,
+            0.00026347564097129914,
+            -0.4438187453100533,
+            0.8961152789105524,
+        ];
+        let expected_yaw: f64 = -0.9197111651241952;
+        let euler_angles = quat_to_euler_angles_elementwise(quat);
+        assert!(euler_angles.2.abs() - expected_yaw.abs() < 1.0e-9)
     }
 }
