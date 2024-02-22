@@ -168,8 +168,8 @@ class CoordTransformExpr(pl.Expr):
 class CTColumn(Protocol):
     def __cal__(
         self,
-        name: str | PolarsDataType | Iterable[str] | Iterable[PolarsDataType],
-        *more_names: str | PolarsDataType,
+        name,
+        *more_names,
     ) -> CoordTransformExpr:
         ...
 
