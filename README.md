@@ -200,6 +200,24 @@ shape: (1, 3)
 
 ```
 
+##### Transform quaternion to Euler angles (roll, pitch, yaw)
+
+the function returns a struct with 3 fields:"roll", "pitch", "yaw"
+
+```
+df.select(
+    euler_angles=pl.col("rotation").transform.quat_to_euler_angles()
+)
+
+┌──────────────────────────────┐
+│ euler_angles                 │
+│ ---                          │
+│ struct[3]                    │
+╞══════════════════════════════╡
+│ {0.598806,0.000000,2.228181} │
+└──────────────────────────────┘
+```
+
 #### `s2`
 
 ##### Find S2 CellID of a point with longitude and latitude (with a given cell level)
