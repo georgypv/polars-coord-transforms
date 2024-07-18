@@ -1,4 +1,5 @@
 maturin
+patchelf
 polars
 pytest
 mypy
