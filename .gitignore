@@ -1,8 +1,8 @@
 /pyo3-polars/target
 target/
-Cargo.lock
 *.so
 __pycache__
 .vscode
 .ruff_cache
 .idea/
+main_.rs

@@ -1,14 +1,30 @@
 extern crate nalgebra as na;
 
 use map_3d::{deg2rad, ecef2geodetic, geodetic2ecef, rad2deg, Ellipsoid};
-use na::{Quaternion, Rotation3, UnitQuaternion, Vector3, Vector4};
+use na::{Quaternion, Rotation3, UnitQuaternion, Vector3, Vector4, Matrix4x3, Matrix3x4, Matrix1x4, Matrix4x1};
+use nalgebra::Const;
 use utm::{lat_lon_to_zone_number, to_utm_wgs84_no_zone};
 
-fn rotation_from_quat(rotation: Vec<f64>) -> na::Rotation<f64, 3> {
+pub fn rotation_from_quat(q: Vec<f64>) -> na::Rotation<f64, 3> {
     let quat =
-        UnitQuaternion::from_quaternion(Quaternion::from_vector(Vector4::from_vec(rotation)));
+        UnitQuaternion::from_quaternion(Quaternion::from_vector(Vector4::from_vec(q)));
     Rotation3::from(quat)
 }
+
+pub fn get_rotation_matrix_elementwise(q: &Vec<f64>, t: &Vec<f64>) -> Vec<f64> {
+
+    let rotation3 = rotation_from_quat(q.to_vec()).into_inner();
+    let mut rotation4 =  Matrix4x3::identity() * (rotation3 * Matrix3x4::identity()) ;
+    let mut t_new = t.to_owned().clone();
+    t_new.push(1.);
+
+    rotation4.set_row(3, &Matrix1x4::from_vec(t_new.to_vec()));
+    
+    let rotation4_as_vector = rotation4.reshape_generic(Const::<16>, Const::<1>).data.0.into_iter().flatten().collect::<Vec<f64>>();
+    rotation4_as_vector
+}
+
+
 
 pub fn map_to_ecef_elementwise(
     map_coords: Vec<f64>,
