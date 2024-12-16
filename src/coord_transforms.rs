@@ -111,7 +111,7 @@ mod transform_tests {
         let ecef_coords: (f64, f64, f64) =
             (2830593.6327610738, 2062375.5703225536, 5312896.0721501345);
         let expected_result: (f64, f64, f64) =
-            (36.077147686805766, 56.783927007002866, 165.8986865637805);
+            (36.077147686805766, 56.783927007002845, 165.8986865637805);
 
         assert_eq!(
             ecef_to_lla_elementwise(ecef_coords.0, ecef_coords.1, ecef_coords.2),

@@ -169,6 +169,14 @@ class DistanceNameSpace:
             is_elementwise=True
         )
 
+    def bboxes_2d(self, other: pl.Expr) -> pl.Expr:
+        return register_plugin_function(
+            plugin_path=Path(__file__).parent,
+            function_name="bboxes_2d",
+            args=[self._expr, other],
+            is_elementwise=True
+        )
+
 
 class CoordTransformExpr(pl.Expr):
     @property
