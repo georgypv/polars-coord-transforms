@@ -127,6 +127,14 @@ class TransformNameSpace:
             args=self._expr,
             is_elementwise=True
         )
+    
+    def get_rotation_matrix(self, offset: pl.Expr) -> pl.Expr:
+        return register_plugin_function(
+            plugin_path=Path(__file__).parent,
+            function_name="get_rotation_matrix",
+            args=[self._expr, offset],
+            is_elementwise=True
+        )
 
 @pl.api.register_expr_namespace("distance")
 class DistanceNameSpace:

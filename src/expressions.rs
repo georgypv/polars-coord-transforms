@@ -609,6 +609,56 @@ fn quat_to_euler_angles(inputs: &[Series]) -> PolarsResult<Series> {
     Ok(out_chunked.into_series())
 }
 
+
+fn rotation_matrix_output(_: &[Field]) -> PolarsResult<Field> {
+    let field = Field::new("rotation_matrix", DataType::List(Box::new(DataType::Float64)));
+    Ok(field)
+}
+
+#[polars_expr(output_type_func=rotation_matrix_output)]
+fn get_rotation_matrix(inputs: &[Series]) -> PolarsResult<Series> {
+
+
+    let rotation_ca = inputs[0].struct_()?;
+    let offset_ca = inputs[1].struct_()?;
+
+    let (rotation_x, rotation_y, rotation_z) = unpack_xyz(rotation_ca, false);
+    let rotation_w = rotation_ca
+        .field_by_name("w")
+        .expect("Unable to find `w` field for rotation!");
+
+    let (offset_x, offset_y, offset_z) = unpack_xyz(offset_ca, false);
+
+    let mut list_builder: ListPrimitiveChunkedBuilder<Float64Type> = ListPrimitiveChunkedBuilder::new("rotation_matrix", rotation_ca.len(), 16, DataType::Float64);
+
+    for (
+        rotation_x_val,
+        rotation_y_val,
+        rotation_z_val,
+        rotation_w_val,
+        offset_x_val,
+        offset_y_val,
+        offset_z_val,
+    ) in izip!(
+        rotation_x.f64().unwrap(),
+        rotation_y.f64().unwrap(),
+        rotation_z.f64().unwrap(),
+        rotation_w.f64().unwrap(),
+        offset_x.f64().unwrap(),
+        offset_y.f64().unwrap(),
+        offset_z.f64().unwrap()
+    ) {
+        let rotation_vec = vec![rotation_x_val.unwrap(), rotation_y_val.unwrap(), rotation_z_val.unwrap(), rotation_w_val.unwrap()];
+        let offset_vec = vec![offset_x_val.unwrap(), offset_y_val.unwrap(), offset_z_val.unwrap()];
+
+        let rotation_matrix = get_rotation_matrix_elementwise(&rotation_vec, &offset_vec);
+        list_builder.append_slice(&rotation_matrix[..]);
+    }
+
+    let out = list_builder.finish();
+    Ok(out.into_series())
+
+}
 //distance
 #[polars_expr(output_type=Float64)]
 fn euclidean_2d(inputs: &[Series]) -> PolarsResult<Series> {
