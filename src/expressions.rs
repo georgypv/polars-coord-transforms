@@ -769,3 +769,100 @@ fn cosine_similarity_3d(inputs: &[Series]) -> PolarsResult<Series> {
         iter.collect_ca_with_dtype("cosine_similarity", DataType::Float64);
     Ok(out_ca.into_series())
 }
+
+#[polars_expr(output_type = Float64)]
+fn bboxes_2d(inputs: &[Series]) -> PolarsResult<Series> {
+    let box_a = inputs[0].struct_()?;
+    let box_b = inputs[1].struct_()?;
+
+
+    let out_chunked = get_distance_between_bboxes_2d(&box_a, &box_b);
+
+    Ok(out_chunked?.into_series())
+}
+
+fn get_distance_between_bboxes_2d(
+    box1: &StructChunked,
+    box2: &StructChunked,
+) -> Result<Series, PolarsError> {
+
+    let bbox1_1_x_ser = &box1.field_by_name("bbox_1_x")?;
+    let bbox1_1_y_ser = &box1.field_by_name("bbox_1_y")?;
+    let bbox1_2_x_ser = &box1.field_by_name("bbox_2_x")?;
+    let bbox1_2_y_ser = &box1.field_by_name("bbox_2_y")?;
+    let bbox1_3_x_ser = &box1.field_by_name("bbox_3_x")?;
+    let bbox1_3_y_ser = &box1.field_by_name("bbox_3_y")?;
+    let bbox1_4_x_ser = &box1.field_by_name("bbox_4_x")?;
+    let bbox1_4_y_ser = &box1.field_by_name("bbox_4_y")?;
+
+    let bbox2_1_x_ser = &box2.field_by_name("bbox_1_x")?;
+    let bbox2_1_y_ser = &box2.field_by_name("bbox_1_y")?;
+    let bbox2_2_x_ser = &box2.field_by_name("bbox_2_x")?;
+    let bbox2_2_y_ser = &box2.field_by_name("bbox_2_y")?;
+    let bbox2_3_x_ser = &box2.field_by_name("bbox_3_x")?;
+    let bbox2_3_y_ser = &box2.field_by_name("bbox_3_y")?;
+    let bbox2_4_x_ser = &box2.field_by_name("bbox_4_x")?;
+    let bbox2_4_y_ser = &box2.field_by_name("bbox_4_y")?;
+
+
+    let mut distances: PrimitiveChunkedBuilder<Float64Type> =
+        PrimitiveChunkedBuilder::new("distance".into(), box1.len());
+
+    for (
+        bbox1_1_x,
+        bbox1_1_y,
+        bbox1_2_x,
+        bbox1_2_y,
+        bbox1_3_x,
+        bbox1_3_y,
+        bbox1_4_x,
+        bbox1_4_y,
+        bbox2_1_x,
+        bbox2_1_y,
+        bbox2_2_x,
+        bbox2_2_y,
+        bbox2_3_x,
+        bbox2_3_y,
+        bbox2_4_x,
+        bbox2_4_y
+    ) in izip!(
+        bbox1_1_x_ser.f64().unwrap(),
+        bbox1_1_y_ser.f64().unwrap(),
+        bbox1_2_x_ser.f64().unwrap(),
+        bbox1_2_y_ser.f64().unwrap(),
+        bbox1_3_x_ser.f64().unwrap(),
+        bbox1_3_y_ser.f64().unwrap(),
+        bbox1_4_x_ser.f64().unwrap(),
+        bbox1_4_y_ser.f64().unwrap(),
+        bbox2_1_x_ser.f64().unwrap(),
+        bbox2_1_y_ser.f64().unwrap(),
+        bbox2_2_x_ser.f64().unwrap(),
+        bbox2_2_y_ser.f64().unwrap(),
+        bbox2_3_x_ser.f64().unwrap(),
+        bbox2_3_y_ser.f64().unwrap(),
+        bbox2_4_x_ser.f64().unwrap(),
+        bbox2_4_y_ser.f64().unwrap()
+    ) {
+        let bbox1 = [
+            PointCoords { x: bbox1_1_x.unwrap(), y: bbox1_1_y.unwrap()},
+            PointCoords { x: bbox1_2_x.unwrap(), y: bbox1_2_y.unwrap()},
+            PointCoords { x: bbox1_3_x.unwrap(), y: bbox1_3_y.unwrap()},
+            PointCoords { x: bbox1_4_x.unwrap(), y: bbox1_4_y.unwrap()},
+        ];
+
+        let bbox2 = [
+            PointCoords { x: bbox2_1_x.unwrap(), y: bbox2_1_y.unwrap()},
+            PointCoords { x: bbox2_2_x.unwrap(), y: bbox2_2_y.unwrap()},
+            PointCoords { x: bbox2_3_x.unwrap(), y: bbox2_3_y.unwrap()},
+            PointCoords { x: bbox2_4_x.unwrap(), y: bbox2_4_y.unwrap()},
+        ];
+
+        let distance = bboxes_2d_elementwise(bbox1, bbox2);
+
+        distances.append_value(distance);
+    }
+
+    let ser_out_distances = distances.finish().into_series();
+
+    Ok(ser_out_distances)
+}
