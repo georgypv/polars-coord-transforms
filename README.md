@@ -6,11 +6,9 @@ It contains functions which were needed in personal and work projects, therefore
 
 The functions are divided among three namespaces: `transform`, `s2`, `distance`:
 
-- `transform` namespace contains functions for converting coordinates from\to map, ecef, lla, utm reference frames.
-
-- `s2` namespace contains functions which allow to work with [S2 Cells](http://s2geometry.io/about/overview)
-
-- `distance` namespace allows to calculate distances between coordinates.
+* `transform` namespace: convert coordinates between map, ECEF, LLA, and UTM reference frames.
+* `s2` namespace: work with [S2 Cells](http://s2geometry.io/about/overview).
+* `distance` namespace: calculate distances between coordinates.
 
 This plugin presupposes that coordinates represent points in space and that they are expressed with `struct` datatype in Polars.
 
