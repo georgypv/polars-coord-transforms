@@ -1,8 +1,8 @@
 # The Project
 
-This Polars plugin provides functionality which can be loosely described as tranformation of coordinates and extraction of features from them.
+This Polars plugin provides functionality which can be loosely described as transformation of coordinates and extraction of features from them.
 
- It contains functions which were needed in personal and work projects, therefore its set of features might appear a bit random. Nevertheless one can find it useful in projects related to robotics, geospatial science, spatial analytics etc. 
+It contains functions which were needed in personal and work projects, therefore its set of features might appear a bit random. Nevertheless one can find it useful in projects related to robotics, geospatial science, spatial analytics etc. 
 
 The functions are divided among three namespaces: `transform`, `s2`, `distance`:
 
@@ -12,28 +12,28 @@ The functions are divided among three namespaces: `transform`, `s2`, `distance`:
 
 - `distance` namespace allows to calculate distances between coordinates.
 
-This plugin presupposes that coordianates represent points in space and that they are expressed with `struct` datatype in Polars.
+This plugin presupposes that coordinates represent points in space and that they are expressed with `struct` datatype in Polars.
 
 
-# Getting Started
+## Getting Started
 
 ### Installation
 
-```
+```bash
 pip install polars-coord-transforms
 ```
 
 ### Usage 
 
-```
+```bash
 import polars_coord_transforms
 ```
 
-In order to use plugin, coordinates should be represented as `struct` with fields `x`, `y`, `z` (or, in case of LLA-points: `lon`, `lat`, `alt`)!
+In order to use the plugin, coordinates should be represented as `struct` with fields `x`, `y`, `z` (or, in case of LLA-points: `lon`, `lat`, `alt`)!
 
-For instance, if coordinates are in separate columns, one can make a valid `struct` with `pl.struct` native Polars function:
+For instance, if coordinates are in separate columns, make a valid `struct` with `pl.struct` native Polars function:
 
-```
+```python
 import polars as pl
 
 df = pl.DataFrame(
@@ -53,8 +53,7 @@ df.with_columns(
 
 Suppose we have the following DataFrame with some coordinates (column "pose"), rotation quaternion (column "rotation") and offset vector (column "offset"): 
 
-```
-
+```python
 import polars as pl
 
 df = pl.DataFrame(
@@ -79,11 +78,11 @@ shape: (1, 3)
 ```
 
 
-#### `transform`
+#### `transform` (Map to ECEF)
 
-##### Transform coordinates from map reference frame to ECEF (Earth-Ceneterd, Earth-Fixed) coordinate system using a rotation quaternion and an offset vector.
+Transform coordinates from map reference frame to ECEF (Earth-Centered, Earth-Fixed) coordinate system using a rotation quaternion and an offset vector.
 
-```
+```python
 df.with_columns(
     ecef=pl.col("pose").transform.map_to_ecef(
         pl.col("rotation"), pl.col("offset")
@@ -104,9 +103,11 @@ shape: (1, 4)
 ```
 
 
-##### Inverse transformation from ECEF to map
+#### Transform ECEF to Map
 
-```
+Inverse transformation from ECEF to map:
+
+```python
 df.with_columns(
     pose_new=pl.col("ecef").transform.ecef_to_map("rotation", "offset")
 ).select(
@@ -127,8 +128,11 @@ shape: (1, 5)
 
 ```
 
-##### Transform coordinates from ECEF to LLA (Longitude, Latitude, Altitude)
-```
+#### Transform ECEF to LLA
+
+Transform coordinates from ECEF to LLA (Longitude, Latitude, Altitude)
+
+```python
 df.with_columns(
     lla=pl.col("ecef").transform.ecef_to_lla()
 )
@@ -144,9 +148,11 @@ shape: (1, 3)
 
 ```
 
-##### Inverse transform from LLA to ECEF
+#### Transform LLA to ECEF
 
-```
+Inverse transform from LLA to ECEF
+
+```python
 df.with_columns(
     ecef_new=pl.col("lla").transform.lla_to_ecef()
 )
@@ -164,9 +170,11 @@ shape: (1, 4)
 
 ```
 
-##### Transform coordinates from LLA to UTM coordinates (UTM zone is derived from coordinates themselves)
+#### Transform LLA to UTM
 
-```
+Transform coordinates from LLA to UTM coordinates (UTM zone is derived from coordinates themselves)
+
+```python
 df.with_columns(
     utm=pl.col("lla").transform.lla_to_utm()
 )
@@ -182,9 +190,11 @@ shape: (1, 3)
 └─────────────────────────────┴─────────────────────────┴──────────────────────────────────┘
 ```
 
-##### Find UTM zone number from a LLA point
+#### LLA Point to UTM Zone
 
-```
+Find UTM zone number from a LLA point:
+
+```python
 df.with_columns(
     utm_zone_number=pl.col("lla").transform.lla_to_utm_zone_number()
 )
@@ -200,11 +210,11 @@ shape: (1, 3)
 
 ```
 
-##### Transform quaternion to Euler angles (roll, pitch, yaw)
+#### Transform quaternion to Euler angles (roll, pitch, yaw)
 
-the function returns a struct with 3 fields:"roll", "pitch", "yaw"
+The function returns a struct with 3 fields: "roll", "pitch", "yaw".
 
-```
+```python
 df.select(
     euler_angles=pl.col("rotation").transform.quat_to_euler_angles()
 )
@@ -222,7 +232,7 @@ df.select(
 
 ##### Find S2 CellID of a point with longitude and latitude (with a given cell level)
 
-```
+```python
 df.select(
     cellid_30=pl.col("lla").s2.lonlat_to_cellid(level=30),
     cellid_28=pl.col("lla").s2.lonlat_to_cellid(level=28),
@@ -242,7 +252,7 @@ shape: (1, 3)
 
 ##### Find longitude and latitude from a S2 CellID
 
-```
+```python
 df.select(
     lla_cell=pl.lit(5095036114269810839, dtype=pl.UInt64()).s2.cellid_to_lonlat()
 )
@@ -259,7 +269,7 @@ shape: (1, 1)
 ```
 
 ##### Find whether a given LLA point is in a S2 Cell identified by a specific ID
-```
+```python
 df.select(
     lla",
     cellid=pl.lit(5095036114269810832, dtype=pl.UInt64()),
@@ -278,7 +288,7 @@ shape: (1, 3)
 ```
 ##### Find vertices of a S2 Cell from a CellID
 
-```
+```python
 df.with_columns(
     cellid=pl.col("lla").s2.lonlat_to_cellid(level=5),
 ).with_columns(
@@ -311,7 +321,7 @@ shape: (1, 8)
 
 #### `distance`
 
-```
+```python
 df = pl.DataFrame(
     [
         pl.Series("point_1", [{'x': -8893.663914126577, 'y': 19116.178523519542, 'z': 14.98697863612324}], dtype=pl.Struct({'x': pl.Float64, 'y': pl.Float64, 'z': pl.Float64})),
@@ -322,7 +332,7 @@ df = pl.DataFrame(
 
 ##### Find Euclidean distance between two points using all 3 components of a point-vector
 
-```
+```python
 df.with_columns(
     distance=pl.col("point_1").distance.euclidean_3d(pl.col("point_2"))
 )
@@ -339,7 +349,7 @@ shape: (1, 3)
 
 ##### Find cosine similarity between between two points using all 3 components of a point-vector
 
-```
+```python
 df.with_columns(
     cosine_sim=pl.col("point_1").distance.cosine_similarity_3d(pl.col("point_2"))
 )
@@ -356,7 +366,7 @@ shape: (1, 3)
 
 ##### Find Euclidean distance between two points using 2 components of a point-vector (X and Y)
 
-```
+```python
 df.with_columns(
     distance=pl.col("point_1").distance.euclidean_2d(pl.col("point_2"))
 )
