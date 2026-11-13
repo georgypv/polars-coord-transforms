@@ -1,9 +1,7 @@
 from pathlib import Path
 import polars as pl
 from polars.plugins import register_plugin_function
-from polars.type_aliases import PolarsDataType
-
-from typing import Protocol, Iterable, cast
+from typing import Protocol, cast
 
 
 @pl.api.register_expr_namespace("s2")
