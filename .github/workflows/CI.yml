@@ -31,7 +31,8 @@ jobs:
           target: ${{ matrix.target }}
           args: --release --out dist --find-interpreter
           sccache: 'true'
-          manylinux: auto
+          # The i686 manylinux2014 image relies on the retired CentOS 7 vault.
+          manylinux: ${{ matrix.target == 'x86' && '2_28' || 'auto' }}
       - name: Upload wheels
         uses: actions/upload-artifact@v4
         with:
