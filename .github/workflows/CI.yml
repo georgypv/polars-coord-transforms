@@ -26,13 +26,25 @@ jobs:
         with:
           python-version: '3.10'
       - name: Build wheels
+        if: matrix.target != 'x86'
         uses: PyO3/maturin-action@v1
         with:
           target: ${{ matrix.target }}
           args: --release --out dist --find-interpreter
           sccache: 'true'
-          # The older i686 images rely on archived distribution repositories.
-          manylinux: ${{ matrix.target == 'x86' && '2_34' || 'auto' }}
+          manylinux: auto
+      - name: Build x86 wheels
+        if: matrix.target == 'x86'
+        uses: PyO3/maturin-action@v1
+        env:
+          CARGO_BUILD_TARGET: i686-unknown-linux-gnu
+        with:
+          # This image already has libatomic; omitting the action's target input
+          # avoids its redundant yum install against the AlmaLinux vault.
+          container: quay.io/pypa/manylinux_2_34_i686:latest
+          manylinux: '2_34'
+          args: --release --out dist --find-interpreter
+          sccache: 'true'
       - name: Upload wheels
         uses: actions/upload-artifact@v4
         with:
@@ -110,7 +122,8 @@ jobs:
           target: wasm32-unknown-emscripten
           args: --release --out dist -i 3.11
           sccache: 'true'
-          rust-toolchain: nightly
+          # Match Emscripten 3.1.46's WebAssembly feature support.
+          rust-toolchain: nightly-2024-10-20
       - name: Upload wheels
         uses: actions/upload-artifact@v4
         with:
