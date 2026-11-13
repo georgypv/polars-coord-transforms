@@ -33,6 +33,28 @@ jobs:
           args: --release --out dist --find-interpreter
           sccache: 'true'
           manylinux: auto
+      - name: Check x86 container networking and threads
+        if: matrix.target == 'x86'
+        id: x86-container
+        shell: bash
+        run: |
+          docker pull quay.io/pypa/manylinux_2_34_i686:latest
+          check_container() {
+            docker run --rm "$@" quay.io/pypa/manylinux_2_34_i686:latest bash -c '
+              set -e
+              /opt/python/cp311-cp311/bin/python -c "import threading; t = threading.Thread(target=lambda: None); t.start(); t.join()"
+              curl -fsSL -o /dev/null https://sh.rustup.rs
+            '
+          }
+          if check_container; then
+            echo 'docker-options=' >> "$GITHUB_OUTPUT"
+          elif check_container --security-opt seccomp=unconfined; then
+            echo '::warning::The x86 container requires Docker seccomp to be disabled for thread creation or DNS.'
+            echo 'docker-options=--security-opt seccomp=unconfined' >> "$GITHUB_OUTPUT"
+          else
+            echo '::error::The x86 container could not start a thread or reach the Rust installer, even without Docker seccomp.'
+            exit 1
+          fi
       - name: Build x86 wheels
         if: matrix.target == 'x86'
         uses: PyO3/maturin-action@v1
@@ -42,6 +64,7 @@ jobs:
           # This image already has libatomic; omitting the action's target input
           # avoids its redundant yum install against the AlmaLinux vault.
           container: quay.io/pypa/manylinux_2_34_i686:latest
+          docker-options: ${{ steps.x86-container.outputs.docker-options }}
           manylinux: '2_34'
           args: --release --out dist --find-interpreter
           sccache: 'true'
